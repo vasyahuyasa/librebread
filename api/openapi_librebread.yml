@@ -92,12 +92,20 @@ paths:
                 - to
                 - text
               properties:
-                from:
+                ID:
+                  type: integer
+                  format: int64
+                Title:
                   type: string
-                to:
+                Text:
                   type: string
-                text:
-                  type: string
+                Data:
+                  type: object
+                  additionalProperties:
+                    type: string
+                TTL:
+                  type: integer
+                  format: int64
       responses:
         '200':
           description: List of message ID
@@ -119,6 +127,27 @@ paths:
       responses:
         '501':
           description: Not implemented
+  /libre/push:
+    post:
+      description: Send push-like message
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - from
+                - to
+                - text
+      responses:
+        '200':
+          description: Push recived
+        '400':
+          description: Mailformed request body
+        '422':
+          description: Wrong input params
+
   /api/v2/tickets:    
     post:
       operationId: PostHelpdeskEddyTicket
