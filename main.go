@@ -318,9 +318,9 @@ func libreCallRoutes(mux *chi.Mux, libreCall *flashcall.LibreCall) {
 func tinkoffRoutes(mux *chi.Mux, librePayment *payment.Payment) {
 	mux.Get("/tinkoff/{processID}/set_status/{status}", tinkoff.SetStatusHandler(librePayment))
 	mux.Get("/tinkoff/{processID}/send_notification", tinkoff.SendNotificationHandler(librePayment))
-	mux.Post("/tinkoff/Init/", tinkoff.InitHandler(librePayment))
-	mux.Post("/tinkoff/Charge/", tinkoff.ChargeHandler(librePayment))
-	mux.Post("/tinkoff/GetState/", tinkoff.GetStateHandler(librePayment))
+	mux.Post("/tinkoff/init/", tinkoff.InitHandler(librePayment))
+	mux.Post("/tinkoff/charge/", tinkoff.ChargeHandler(librePayment))
+	mux.Post("/tinkoff/getstate/", tinkoff.GetStateHandler(librePayment))
 }
 
 func librePaymentRoutes(mux *chi.Mux, librePaymentHandler *librepayment.LibrePaymentHandler) {

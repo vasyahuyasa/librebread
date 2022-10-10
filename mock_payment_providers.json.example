@@ -1,0 +1,9 @@
+{
+    "Providers": [{
+        "ProviderID": 1,
+        "Type": "Tinkoff",
+        "Login": "tinkoff-root",
+        "Password": "root",
+        "URL": "https://example.com"
+    }]
+}

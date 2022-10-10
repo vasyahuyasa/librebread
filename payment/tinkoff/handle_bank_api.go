@@ -31,14 +31,14 @@ func InitHandler(p *payment.Payment) func(w http.ResponseWriter, r *http.Request
 
 		var client payment.Client
 		if input.CustomerKey != "" {
-			if p.HasClientByID(input.CustomerKey) {
-				client, err = p.GetClientByID(input.CustomerKey)
+			if p.HasClientByID(string(input.CustomerKey)) {
+				client, err = p.GetClientByID(string(input.CustomerKey))
 				if err != nil {
 					log.Printf("Tinkoff: %v", err)
 					return
 				}
 			} else {
-				client, err = p.CreateClient(input.CustomerKey)
+				client, err = p.CreateClient(string(input.CustomerKey))
 				if err != nil {
 					log.Printf("Tinkoff: %v", err)
 					return
@@ -66,7 +66,7 @@ func InitHandler(p *payment.Payment) func(w http.ResponseWriter, r *http.Request
 			Description:     input.Description,
 			Recurrent:       isRecurrent,
 			ClientID:        client.ClientID,
-			OrderID:         input.OrderID,
+			OrderID:         string(input.OrderID),
 		}
 
 		p.AddProcess(process)

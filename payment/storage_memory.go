@@ -1,6 +1,8 @@
 package payment
 
 import (
+	"encoding/json"
+	"log"
 	"sync"
 	"time"
 )
@@ -11,6 +13,21 @@ const (
 	TinkoffProvider  ProviderType = "Tinkoff"
 	SberbankProvider ProviderType = "Sberbank"
 )
+
+func (pt *ProviderType) UnmarshalJSON(b []byte) error {
+	var paymentProvider string
+	if err := json.Unmarshal(b, &paymentProvider); err != nil {
+		return err
+	}
+
+	if paymentProvider != string(TinkoffProvider) && paymentProvider != string(SberbankProvider) {
+		log.Printf("UnmarshalJSON: %v", ErrIncorrectPaymentProvider)
+	}
+
+	*pt = ProviderType(paymentProvider)
+
+	return nil
+}
 
 type MemoryStorage struct {
 	storageMu                  sync.Mutex

@@ -19,6 +19,4 @@ var (
 	ErrRebillIDAlreadyExists = errors.New("RebillID already exists")
 
 	ErrRequestNotProcessID = errors.New("ProcessID param is required and must be a number")
-
-	WrongJSONFormat = errors.New("Wrong json format")
 )

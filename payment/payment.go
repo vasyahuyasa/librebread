@@ -1,9 +1,12 @@
 package payment
 
 import (
+	"encoding/json"
+	"io/ioutil"
 	"log"
 	"math/rand"
 	"net/http"
+	"os"
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
@@ -14,6 +17,8 @@ const (
 	maxProcessID = 10000000
 	minRebillID  = 1000
 	maxRebillID  = 10000000
+
+	mockPaymentProvidersFile = "./mock_payment_providers.json"
 )
 
 type Payment struct {
@@ -27,17 +32,33 @@ func NewPayment() *Payment {
 }
 
 func AddMockProviders(p *Payment) {
-	tinkoffMock := Provider{
-		ProviderID: 1,
-		Type:       TinkoffProvider,
-		Login:      "tinkoff-root",
-		Password:   "root",
-		URL:        "https://sms.oms.loc",
+	type Providers struct {
+		Providers []Provider `json:"Providers"`
+	}
+	var providers Providers
+
+	jsonFile, err := os.Open(mockPaymentProvidersFile)
+	if err != nil {
+		log.Printf("Mock payment providers properties: %v", err)
+		return
+	}
+	defer jsonFile.Close()
+
+	byteValue, err := ioutil.ReadAll(jsonFile)
+	if err != nil {
+		log.Printf("Mock payment providers properties: %v", err)
+		return
 	}
 
-	if err := p.AddProvider(tinkoffMock); err != nil {
-		log.Printf("Add mock providers: %v", err)
-		return
+	json.Unmarshal(byteValue, &providers)
+
+	for i := 0; i < len(providers.Providers); i++ {
+		if err := p.AddProvider(providers.Providers[i]); err != nil {
+			log.Printf("Add mock payment providers: %v", err)
+			return
+		}
+
+		log.Printf("Added mock payment providers: %v", providers.Providers[i].Login)
 	}
 }
 

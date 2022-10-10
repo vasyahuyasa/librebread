@@ -2,22 +2,44 @@ package tinkoff
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
-
-	"github.com/vasyahuyasa/librebread/payment"
+	"strconv"
 )
 
+type StringInt string
+
+func (st *StringInt) UnmarshalJSON(b []byte) error {
+	var item interface{}
+	if err := json.Unmarshal(b, &item); err != nil {
+		return err
+	}
+
+	switch v := item.(type) {
+	case string:
+		*st = StringInt(v)
+	case int:
+		i := strconv.Itoa(v)
+		*st = StringInt(i)
+	case float64:
+		f := fmt.Sprintf("%v", v)
+		*st = StringInt(f)
+	}
+
+	return nil
+}
+
 type initInput struct {
-	TerminalKey     string `json:"TerminalKey"`
-	Amount          int64  `json:"Amount"`
-	OrderID         string `json:"OrderId"`
-	Description     string `json:"Description"`
-	Recurrent       string `json:"Recurrent"`
-	NotificationURL string `json:"NotificationURL"`
-	SuccessURL      string `json:"SuccessURL"`
-	FailURL         string `json:"FailURL"`
-	CustomerKey     string `json:"CustomerKey"`
-	Token           string `json:"Token"`
+	TerminalKey     string    `json:"TerminalKey"`
+	Amount          int64     `json:"Amount"`
+	OrderID         StringInt `json:"OrderId,number"`
+	Description     string    `json:"Description"`
+	Recurrent       string    `json:"Recurrent"`
+	NotificationURL string    `json:"NotificationURL"`
+	SuccessURL      string    `json:"SuccessURL"`
+	FailURL         string    `json:"FailURL"`
+	CustomerKey     StringInt `json:"CustomerKey"`
+	Token           string    `json:"Token"`
 }
 
 type chargeInput struct {
@@ -50,8 +72,7 @@ func getStateRequest(r *http.Request) (input getStateInput, err error) {
 
 func readJSON(r *http.Request, obj interface{}) error {
 	decoder := json.NewDecoder(r.Body)
-	if err := decoder.Decode(obj); err != nil {
-		return payment.WrongJSONFormat
-	}
-	return nil
+	err := decoder.Decode(obj)
+
+	return err
 }
