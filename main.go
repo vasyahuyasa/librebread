@@ -309,6 +309,7 @@ func helpdeskRoutes(mux *chi.Mux, stor *helpdesk.HelpdeskStorage, notifier helpd
 
 func libreBreadPushRoutes(mux *chi.Mux, h *push.LibreBreadHandler) {
 	mux.Post("/push", h.HandlePush)
+	mux.Post("/push/v2", h.HandlePush2)
 }
 
 func libreCallRoutes(mux *chi.Mux, libreCall *flashcall.LibreCall) {
@@ -476,40 +477,12 @@ func pushIndexHandler(store push.Storage) func(w http.ResponseWriter, r *http.Re
 
 		b.WriteString(pushTableHeaderWithCount(len(messages)))
 		for _, msg := range messages {
-			shortMsg := struct {
-				ID           int64             `json:"id"`
-				PushService  string            `json:"push_service"`
-				Title        string            `json:"title"`
-				Text         string            `json:"text"`
-				Data         map[string]string `json:"data,omitempty"`
-				TTL          int64             `json:"ttl"`
-				ValidateOnly bool              `json:"validate_only"`
-			}{
-				ID:           msg.Msg.ID,
-				PushService:  msg.Msg.PushService,
-				Title:        msg.Msg.Title,
-				Text:         msg.Msg.Text,
-				Data:         msg.Msg.Data,
-				TTL:          msg.Msg.TTL,
-				ValidateOnly: msg.Msg.ValidateOnly,
-			}
-
-			beautyMsg, err := json.MarshalIndent(shortMsg, "", "  ")
-			if err != nil {
-				log.Printf("cannot marshal message %v: %v", shortMsg, err)
-				_, err := fmt.Fprintf(w, "cannot marshal message %v: %v", shortMsg, err)
-				if err != nil {
-					log.Printf("can not send error response to client: %v", err)
-				}
-				return
-			}
-
 			b.WriteString("<tr>" +
 				"<td>" + html.EscapeString(msg.ID) + "</td>" +
 				"<td>" + msg.Time.Format("2006-01-02 15:04:05") + "</td>" +
-				"<td>" + html.EscapeString(msg.Msg.PushService) + "</td>" +
-				"<td><pre>" + html.EscapeString(string(beautyMsg)) + "</pre></td>" +
-				"<td><a href=\"\\push\\" + msg.ID + "\"> view (" + strconv.Itoa(len(msg.Msg.Tokens)) + ")</a></td>" +
+				"<td>" + html.EscapeString(msg.PushService) + "</td>" +
+				"<td><pre>" + html.EscapeString(string(msg.RawMsg)) + "</pre></td>" +
+				"<td><a href=\"\\push\\" + msg.ID + "\"> view (" + strconv.Itoa(len(msg.Tokens)) + ")</a></td>" +
 				"</tr>")
 		}
 		b.WriteString(pushTableFooter)
@@ -536,34 +509,6 @@ func pushByIDHandler(store push.Storage) func(w http.ResponseWriter, r *http.Req
 
 		b := strings.Builder{}
 
-		shortMsg := struct {
-			ID           int64             `json:"id"`
-			PushService  string            `json:"push_service"`
-			Title        string            `json:"title"`
-			Text         string            `json:"text"`
-			Data         map[string]string `json:"data,omitempty"`
-			TTL          int64             `json:"ttl"`
-			ValidateOnly bool              `json:"validate_only"`
-		}{
-			ID:           msg.Msg.ID,
-			PushService:  msg.Msg.PushService,
-			Title:        msg.Msg.Title,
-			Text:         msg.Msg.Text,
-			Data:         msg.Msg.Data,
-			TTL:          msg.Msg.TTL,
-			ValidateOnly: msg.Msg.ValidateOnly,
-		}
-
-		beautyMsg, err := json.MarshalIndent(shortMsg, "", "  ")
-		if err != nil {
-			log.Printf("cannot marshal message %v: %v", shortMsg, err)
-			_, err := fmt.Fprintf(w, "cannot marshal message %v: %v", shortMsg, err)
-			if err != nil {
-				log.Printf("can not send error response to client: %v", err)
-			}
-			return
-		}
-
 		b.WriteString(fmt.Sprintf(`
 		<p><b>ID</b>: %s</p>
 		<p><b>Time</b>: %s</p>
@@ -572,9 +517,9 @@ func pushByIDHandler(store push.Storage) func(w http.ResponseWriter, r *http.Req
 		<p><b>Tokens</b>: %s</p>`,
 			html.EscapeString(msg.ID),
 			msg.Time.Format("2006-01-02 15:04:05"),
-			html.EscapeString(msg.Msg.PushService),
-			html.EscapeString(string(beautyMsg)),
-			html.EscapeString(strings.Join(msg.Msg.Tokens, ",")),
+			html.EscapeString(msg.PushService),
+			html.EscapeString(string(msg.RawMsg)),
+			html.EscapeString(strings.Join(msg.Tokens, ",")),
 		))
 
 		_, err = w.Write([]byte(b.String()))
