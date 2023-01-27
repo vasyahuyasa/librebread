@@ -10,18 +10,14 @@ import (
 
 var ErrMessageNotFound = errors.New("message not found in store")
 
-type SentMessage struct {
-	ID   string
-	Time time.Time
-	Msg  BatchMessage
-}
+type storeMessage Message
 
 type MemoryStorage struct {
 	nextID func() string
 
 	mutex    sync.Mutex
-	byID     map[string]*SentMessage
-	messages []SentMessage
+	byID     map[string]*storeMessage
+	messages []storeMessage
 }
 
 func NewMemoryStorage() *MemoryStorage {
@@ -32,47 +28,59 @@ func NewMemoryStorage() *MemoryStorage {
 			id := atomic.AddInt64(&lastID, 1)
 			return strconv.FormatInt(id, 10)
 		},
-		byID: map[string]*SentMessage{},
+		byID: map[string]*storeMessage{},
 	}
 }
 
-func (store *MemoryStorage) AddBatchMessage(msg BatchMessage) error {
+func (store *MemoryStorage) AddMessage(pushService string, rawMsg []byte, tokens []string) error {
 	store.mutex.Lock()
 	defer store.mutex.Unlock()
 
 	id := store.nextID()
 
-	storeMessage := SentMessage{
-		ID:   id,
-		Time: time.Now(),
-		Msg:  msg,
+	msg := storeMessage{
+		ID:          id,
+		Time:        time.Now(),
+		PushService: pushService,
+		RawMsg:      rawMsg,
+		Tokens:      tokens,
 	}
 
 	// reverse message order with fewer allocations
-	store.messages = append(store.messages, SentMessage{})
+	store.messages = append(store.messages, storeMessage{})
 	copy(store.messages[1:], store.messages)
-	store.messages[0] = storeMessage
+	store.messages[0] = msg
 
 	store.byID[id] = &store.messages[0]
 
 	return nil
 }
 
-func (store *MemoryStorage) AllMessages() ([]SentMessage, error) {
+func (store *MemoryStorage) AllMessages() ([]Message, error) {
 	store.mutex.Lock()
 	defer store.mutex.Unlock()
 
-	return store.messages, nil
+	msgs := make([]Message, 0, len(store.messages))
+
+	for _, m := range store.messages {
+		msgs = append(msgs, storeToMessage(m))
+	}
+
+	return msgs, nil
 }
 
-func (store *MemoryStorage) ByID(id string) (SentMessage, error) {
+func (store *MemoryStorage) ByID(id string) (Message, error) {
 	store.mutex.Lock()
 	defer store.mutex.Unlock()
 
 	msg, ok := store.byID[id]
 	if !ok {
-		return SentMessage{}, ErrMessageNotFound
+		return Message{}, ErrMessageNotFound
 	}
 
-	return *msg, nil
+	return storeToMessage(*msg), nil
+}
+
+func storeToMessage(msg storeMessage) Message {
+	return Message(msg)
 }

@@ -1,22 +1,22 @@
 package push
 
-import "fmt"
+import (
+	"fmt"
+	"time"
+)
 
-type Storage interface {
-	AddBatchMessage(msg BatchMessage) error
-	AllMessages() ([]SentMessage, error)
-	ByID(id string) (SentMessage, error)
+type Message struct {
+	ID          string
+	Time        time.Time
+	PushService string
+	RawMsg      []byte
+	Tokens      []string
 }
 
-type BatchMessage struct {
-	ID           int64             `json:"id"`
-	PushService  string            `json:"push_service"`
-	Title        string            `json:"title"`
-	Text         string            `json:"text"`
-	Data         map[string]string `json:"data,omitempty"`
-	TTL          int64             `json:"ttl"`
-	Tokens       []string          `json:"tokens"`
-	ValidateOnly bool              `json:"validate_only"`
+type Storage interface {
+	AddMessage(pushService string, rawMsg []byte, tokens []string) error
+	AllMessages() ([]Message, error)
+	ByID(id string) (Message, error)
 }
 
 type SendResponse struct {
@@ -41,23 +41,23 @@ func NewLibrePush(storage Storage) *LibrePush {
 	}
 }
 
-func (p *LibrePush) Send(msg BatchMessage) (*BatchResponse, error) {
-	err := p.storage.AddBatchMessage(msg)
+func (p *LibrePush) Send(pushService string, rawMsg []byte, tokens []string) (*BatchResponse, error) {
+	err := p.storage.AddMessage(pushService, rawMsg, tokens)
 	if err != nil {
 		return nil, fmt.Errorf("can not save batch message to storage: %w", err)
 	}
 
 	var response BatchResponse
 
-	allSuccess(msg.Tokens, &response)
+	allSuccess(tokens, &response)
 
 	return &response, nil
 }
 
-func (p *LibrePush) SendDryRun(msg BatchMessage) (*BatchResponse, error) {
+func (p *LibrePush) SendDryRun(tokens []string) (*BatchResponse, error) {
 	var response BatchResponse
 
-	allSuccess(msg.Tokens, &response)
+	allSuccess(tokens, &response)
 
 	return &response, nil
 }
