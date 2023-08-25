@@ -23,6 +23,7 @@ import (
 	"github.com/vasyahuyasa/librebread/push"
 	"github.com/vasyahuyasa/librebread/sms"
 	"github.com/vasyahuyasa/librebread/ssenotifier"
+	"github.com/vasyahuyasa/librebread/telegram"
 )
 
 const (
@@ -329,6 +330,11 @@ func librePaymentRoutes(mux *chi.Mux, librePaymentHandler *librepayment.LibrePay
 	mux.Get("/libre/payment/{payment_id}", librePaymentHandler.GetPaymentStatus)
 	mux.Post("/libre/payment/{payment_id}/confirm", librePaymentHandler.ConfirmPayment)
 	mux.Post("/libre/payment/{payment_id}/reject", librePaymentHandler.RejectPayment)
+}
+
+func libreTelegramRoutes(mux *chi.Mux, api *telegram.BotAPI) {
+	mux.Post("{botToken}/{botMethod}", api.Handler)
+	mux.Get("{botToken}/{botMethod}", api.Handler)
 }
 
 func httpServer(stor *sms.Storage, hstor *helpdesk.HelpdeskStorage, smsru sms.SmsRu, mailStor *mailserver.MailStorage,
