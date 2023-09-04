@@ -1,26 +1,38 @@
 package telegram
 
-import "sync"
+import (
+	"sync"
+	"time"
+)
 
 type TelegramRequest struct {
+	Time    time.Time
 	Token   string
 	Method  string
 	Payload map[string]string
 }
 
-type TelegramStorage struct {
+type MemoryTelegramStorage struct {
 	requests []TelegramRequest
 	mu       *sync.RWMutex
 }
 
-func (s *TelegramStorage) Add(r TelegramRequest) {
+func NewMemoryTelegramStorage() *MemoryTelegramStorage {
+	return &MemoryTelegramStorage{
+		mu: &sync.RWMutex{},
+	}
+}
+
+func (s *MemoryTelegramStorage) Add(r TelegramRequest) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	s.requests = append(s.requests, r)
+
+	return nil
 }
 
-func (s *TelegramStorage) AllByDateDesc() []TelegramRequest {
+func (s *MemoryTelegramStorage) AllSortedByDateDesc() ([]TelegramRequest, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -30,5 +42,5 @@ func (s *TelegramStorage) AllByDateDesc() []TelegramRequest {
 		list = append(list, s.requests[i])
 	}
 
-	return list
+	return list, nil
 }

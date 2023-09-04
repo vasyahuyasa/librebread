@@ -60,6 +60,7 @@ const (
 				<li><a href="/flashcall">flashcall</a></li>
 				<li><a href="/payments">payments</a></li>
 				<li><a href="/librepayments">librepayments</a></li>
+				<li><a href="/telegram">telegram Bot</a></li>
 			</ol>
 			<button onclick="Notification.requestPermission()">notifications</button>`
 
@@ -340,7 +341,7 @@ func libreTelegramRoutes(mux *chi.Mux, api *telegram.BotAPI) {
 func httpServer(stor *sms.Storage, hstor *helpdesk.HelpdeskStorage, smsru sms.SmsRu, mailStor *mailserver.MailStorage,
 	sseNotification *ssenotifier.Broker, libreSMS *sms.LibreBread, user string, password string,
 	libreBreadhandler *push.LibreBreadHandler, pushStore push.Storage, libreCall *flashcall.LibreCall,
-	librePayment *payment.Payment, librePaymentHandler *librepayment.LibrePaymentHandler) {
+	librePayment *payment.Payment, librePaymentHandler *librepayment.LibrePaymentHandler, botAPI *telegram.BotAPI) {
 	r := chi.NewRouter()
 	r.Group(func(r chi.Router) {
 		if user != "" && password != "" {
@@ -358,6 +359,7 @@ func httpServer(stor *sms.Storage, hstor *helpdesk.HelpdeskStorage, smsru sms.Sm
 			r.Get("/payment/{processID}", librePayment.ViewPaymentHandler)
 			r.Get("/librepayments", librePaymentHandler.IndexPage)
 			r.Get("/librepayments/{payment_id}", librePaymentHandler.PaymentPage)
+			r.Get("/telegram", botAPI.IndexPage)
 		})
 	})
 
