@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -58,6 +59,7 @@ func (api *BotAPI) IndexPage(w http.ResponseWriter, r *http.Request) {
 			})
 		}
 
+		w.Header().Set("Content-Type", contentTypeApplicationJson)
 		err = json.NewEncoder(w).Encode(templateRequests)
 		if err != nil {
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
@@ -99,7 +101,7 @@ func (api *BotAPI) MethodHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	} else if r.Method == http.MethodPost {
 		if r.Header.Get("Content-Type") == contentTypeApplicationJson {
-			p := map[string]string{}
+			p := map[string]interface{}{}
 
 			err := json.NewDecoder(r.Body).Decode(&p)
 			if err != nil {
@@ -110,7 +112,15 @@ func (api *BotAPI) MethodHandler(w http.ResponseWriter, r *http.Request) {
 			defer r.Body.Close()
 
 			for k, v := range p {
-				payload[k] = v
+				var strval string
+				switch t := v.(type) {
+				case float64:
+					strval = strconv.FormatFloat(t, 'f', -1, 64)
+				case string:
+					strval = t
+				}
+
+				payload[k] = strval
 			}
 		} else {
 			err := r.ParseMultipartForm(maxFormSize)
@@ -136,7 +146,7 @@ func (api *BotAPI) MethodHandler(w http.ResponseWriter, r *http.Request) {
 		log.Printf("cannot handle telegram method %q: %v", method, err)
 	}
 
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", contentTypeApplicationJson)
 	err = json.NewEncoder(w).Encode(response{
 		Ok:     true,
 		Result: result,

@@ -335,8 +335,8 @@ func librePaymentRoutes(mux *chi.Mux, librePaymentHandler *librepayment.LibrePay
 }
 
 func libreTelegramRoutes(mux *chi.Mux, api *telegram.BotAPI) {
-	mux.Post("/{botToken}/{botMethod}", api.MethodHandler)
-	mux.Get("/{botToken}/{botMethod}", api.MethodHandler)
+	mux.Post("/telegram/{botToken}/{botMethod}", api.MethodHandler)
+	mux.Get("/telegram/{botToken}/{botMethod}", api.MethodHandler)
 }
 
 func httpServer(stor *sms.Storage, hstor *helpdesk.HelpdeskStorage, smsru sms.SmsRu, mailStor *mailserver.MailStorage,

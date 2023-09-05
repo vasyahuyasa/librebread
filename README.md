@@ -88,6 +88,11 @@ __LibrePayment__
 |-------------------------|-------------|
 | `LIBREPAYMENT_BASE_URL` | Base url for generate payment link. Default `http://localhost` |
 
+__LibreTelegram__
+| URL                          | DESCRIPTION |
+|------------------------------|-------------|
+| `/telegram/{botToken}/{botMethod}`    | Telegram bot api request |
+
 ### SMTP 25 port
 
 Plain SMTP server
