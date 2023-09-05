@@ -247,9 +247,10 @@ func main() {
 	librePayment := librepayment.NewDefaultLibrePyament()
 	urlGenerator := librepayment.NewPaymentUrlGeneratorFromENV()
 	librePaymentHandler := librepayment.NewLibrePaymentHandler(librePayment, urlGenerator)
+	telegramBotApi := telegram.NewBotAPI(telegram.NewMemoryTelegramStorage())
 
 	go func() {
-		httpServer(smsStor, hstor, smsru, mailStor, sseNotifier, libreSMS, user, password, libreBreadHandler, pushStorage, libreCall, payments, librePaymentHandler)
+		httpServer(smsStor, hstor, smsru, mailStor, sseNotifier, libreSMS, user, password, libreBreadHandler, pushStorage, libreCall, payments, librePaymentHandler, telegramBotApi)
 	}()
 
 	// devino telecom mock server
@@ -334,8 +335,8 @@ func librePaymentRoutes(mux *chi.Mux, librePaymentHandler *librepayment.LibrePay
 }
 
 func libreTelegramRoutes(mux *chi.Mux, api *telegram.BotAPI) {
-	mux.Post("{botToken}/{botMethod}", api.Handler)
-	mux.Get("{botToken}/{botMethod}", api.Handler)
+	mux.Post("/{botToken}/{botMethod}", api.MethodHandler)
+	mux.Get("/{botToken}/{botMethod}", api.MethodHandler)
 }
 
 func httpServer(stor *sms.Storage, hstor *helpdesk.HelpdeskStorage, smsru sms.SmsRu, mailStor *mailserver.MailStorage,
@@ -374,6 +375,7 @@ func httpServer(stor *sms.Storage, hstor *helpdesk.HelpdeskStorage, smsru sms.Sm
 	libreCallRoutes(r, libreCall)
 	tinkoffRoutes(r, librePayment)
 	librePaymentRoutes(r, librePaymentHandler)
+	libreTelegramRoutes(r, botAPI)
 
 	log.Println("start HTTP on", addr)
 	err := http.ListenAndServe(addr, r)

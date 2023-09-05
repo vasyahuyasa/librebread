@@ -36,7 +36,7 @@ func (s *MemoryTelegramStorage) AllSortedByDateDesc() ([]TelegramRequest, error)
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	list := make([]TelegramRequest, len(s.requests))
+	list := make([]TelegramRequest, 0, len(s.requests))
 
 	for i := len(s.requests) - 1; i >= 0; i-- {
 		list = append(list, s.requests[i])

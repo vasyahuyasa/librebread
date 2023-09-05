@@ -12,7 +12,7 @@
             <td>{{.Time}}</td>
             <td>{{.Token}}</td>
             <td>{{.Method}}</td>
-            <td>{{.Payload}}</td>
+            <td><pre>{{.Payload}}<pre></td>
         </tr>
         {{end}}
     </tbody>
