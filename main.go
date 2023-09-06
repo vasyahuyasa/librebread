@@ -23,6 +23,7 @@ import (
 	"github.com/vasyahuyasa/librebread/push"
 	"github.com/vasyahuyasa/librebread/sms"
 	"github.com/vasyahuyasa/librebread/ssenotifier"
+	"github.com/vasyahuyasa/librebread/telegram"
 )
 
 const (
@@ -59,6 +60,7 @@ const (
 				<li><a href="/flashcall">flashcall</a></li>
 				<li><a href="/payments">payments</a></li>
 				<li><a href="/librepayments">librepayments</a></li>
+				<li><a href="/telegram">telegram Bot</a></li>
 			</ol>
 			<button onclick="Notification.requestPermission()">notifications</button>`
 
@@ -245,9 +247,10 @@ func main() {
 	librePayment := librepayment.NewDefaultLibrePyament()
 	urlGenerator := librepayment.NewPaymentUrlGeneratorFromENV()
 	librePaymentHandler := librepayment.NewLibrePaymentHandler(librePayment, urlGenerator)
+	telegramBotApi := telegram.NewBotAPI(telegram.NewMemoryTelegramStorage())
 
 	go func() {
-		httpServer(smsStor, hstor, smsru, mailStor, sseNotifier, libreSMS, user, password, libreBreadHandler, pushStorage, libreCall, payments, librePaymentHandler)
+		httpServer(smsStor, hstor, smsru, mailStor, sseNotifier, libreSMS, user, password, libreBreadHandler, pushStorage, libreCall, payments, librePaymentHandler, telegramBotApi)
 	}()
 
 	// devino telecom mock server
@@ -331,10 +334,15 @@ func librePaymentRoutes(mux *chi.Mux, librePaymentHandler *librepayment.LibrePay
 	mux.Post("/libre/payment/{payment_id}/reject", librePaymentHandler.RejectPayment)
 }
 
+func libreTelegramRoutes(mux *chi.Mux, api *telegram.BotAPI) {
+	mux.Post("/telegram/{botToken}/{botMethod}", api.MethodHandler)
+	mux.Get("/telegram/{botToken}/{botMethod}", api.MethodHandler)
+}
+
 func httpServer(stor *sms.Storage, hstor *helpdesk.HelpdeskStorage, smsru sms.SmsRu, mailStor *mailserver.MailStorage,
 	sseNotification *ssenotifier.Broker, libreSMS *sms.LibreBread, user string, password string,
 	libreBreadhandler *push.LibreBreadHandler, pushStore push.Storage, libreCall *flashcall.LibreCall,
-	librePayment *payment.Payment, librePaymentHandler *librepayment.LibrePaymentHandler) {
+	librePayment *payment.Payment, librePaymentHandler *librepayment.LibrePaymentHandler, botAPI *telegram.BotAPI) {
 	r := chi.NewRouter()
 	r.Group(func(r chi.Router) {
 		if user != "" && password != "" {
@@ -352,6 +360,7 @@ func httpServer(stor *sms.Storage, hstor *helpdesk.HelpdeskStorage, smsru sms.Sm
 			r.Get("/payment/{processID}", librePayment.ViewPaymentHandler)
 			r.Get("/librepayments", librePaymentHandler.IndexPage)
 			r.Get("/librepayments/{payment_id}", librePaymentHandler.PaymentPage)
+			r.Get("/telegram", botAPI.IndexPage)
 		})
 	})
 
@@ -366,6 +375,7 @@ func httpServer(stor *sms.Storage, hstor *helpdesk.HelpdeskStorage, smsru sms.Sm
 	libreCallRoutes(r, libreCall)
 	tinkoffRoutes(r, librePayment)
 	librePaymentRoutes(r, librePaymentHandler)
+	libreTelegramRoutes(r, botAPI)
 
 	log.Println("start HTTP on", addr)
 	err := http.ListenAndServe(addr, r)
