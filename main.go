@@ -51,7 +51,6 @@ const (
 			</style>
 		</head>
 		<body>
-			<script src="/static/js/main.js"></script>
 			<ol>
 				<li><a href="/">sms</a></li>
 				<li><a href="/helpdesk">helpdesk</a></li>
@@ -62,7 +61,7 @@ const (
 				<li><a href="/librepayments">librepayments</a></li>
 				<li><a href="/telegram">telegram Bot</a></li>
 			</ol>
-			<button onclick="Notification.requestPermission()">notifications</button>`
+			<!--<button onclick="Notification.requestPermission()">notifications</button>-->`
 
 	smsTableFooter = `</table>`
 
@@ -366,7 +365,7 @@ func httpServer(stor *sms.Storage, hstor *helpdesk.HelpdeskStorage, smsru sms.Sm
 
 	r.Get("/events", sseNotification.ClientHandler())
 
-	fileServer(r, "/static", http.Dir(staticDir))
+	fileServer(r, "/static/", http.Dir(staticDir))
 
 	smsRuRoutes(r, smsru)
 	libreBreadSmsRoutes(r, libreSMS)

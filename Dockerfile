@@ -1,7 +1,7 @@
-FROM golang:1.21.0-alpine3.18 as builder
+FROM golang:1.21.0-alpine3.18 AS builder
 WORKDIR /build
 COPY . .
-RUN CGO_ENABLED=0 go build -o librebread
+RUN go build -o librebread
 
 FROM alpine:3.18
 WORKDIR /app
