@@ -68,30 +68,33 @@ func (stor *MemoryStorage) Add(createdAt time.Time, id string, amount float64, m
 	return nil
 }
 
-func (stor *MemoryStorage) SetPaymentStatus(id string, status PaymentStatus) error {
-	stor.mu.Lock()
-	defer stor.mu.Unlock()
-
-	payment, ok := stor.paymentsByID[id]
-	if !ok {
-		return ErrPaymentNotFound
-	}
-
-	payment.Status = status
-
-	return nil
-}
-
 func (stor *MemoryStorage) Get(id string) (StoragePayment, error) {
 	stor.mu.RLock()
 	defer stor.mu.RUnlock()
 
-	p, ok := stor.paymentsByID[id]
-	if !ok {
-		return StoragePayment{}, ErrPaymentNotFound
+	p, err := stor.get(id)
+	if err != nil {
+		return StoragePayment{}, err
 	}
 
 	return p.clone(), nil
+}
+
+// WithPayment retrieves a payment by ID and runs the given function with it.
+// It uses a read lock for thread-safe access. If the payment doesn't exist,
+// the function returns an error and the callback is not called.
+func (stor *MemoryStorage) WithPayment(id string, f func(*StoragePayment)) error {
+	stor.mu.RLock()
+	defer stor.mu.RUnlock()
+
+	p, err := stor.get(id)
+	if err != nil {
+		return err
+	}
+
+	f(p)
+
+	return nil
 }
 
 func (stor *MemoryStorage) GetAllDesc() ([]StoragePayment, error) {
@@ -107,6 +110,15 @@ func (stor *MemoryStorage) GetAllDesc() ([]StoragePayment, error) {
 	}
 
 	return list, nil
+}
+
+func (stor *MemoryStorage) get(id string) (*StoragePayment, error) {
+	p, ok := stor.paymentsByID[id]
+	if !ok {
+		return nil, ErrPaymentNotFound
+	}
+
+	return p, nil
 }
 
 func (payment *StoragePayment) clone() StoragePayment {

@@ -127,6 +127,9 @@ func (h *LibrePaymentHandler) ConfirmPayment(w http.ResponseWriter, r *http.Requ
 		if errors.Is(err, ErrPaymentNotFound) {
 			code = http.StatusNotFound
 		}
+		if errors.Is(err, ErrWrongPaymentStatus) {
+			code = http.StatusUnprocessableEntity
+		}
 
 		http.Error(w, err.Error(), code)
 		return
@@ -141,6 +144,9 @@ func (h *LibrePaymentHandler) RejectPayment(w http.ResponseWriter, r *http.Reque
 		code := http.StatusInternalServerError
 		if errors.Is(err, ErrPaymentNotFound) {
 			code = http.StatusNotFound
+		}
+		if errors.Is(err, ErrWrongPaymentStatus) {
+			code = http.StatusUnprocessableEntity
 		}
 
 		http.Error(w, err.Error(), code)

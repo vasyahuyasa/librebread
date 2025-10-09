@@ -1,13 +1,19 @@
 package librepayment
 
 import (
+	"errors"
+	"fmt"
+	"net/http"
 	"time"
 
 	uuid "github.com/satori/go.uuid"
 )
 
+var ErrWrongPaymentStatus = errors.New("Wrong payment status")
+
 type LibrePayment struct {
-	stor *MemoryStorage
+	stor        *MemoryStorage
+	notificator *Notificator
 }
 
 type Payment struct {
@@ -19,14 +25,17 @@ type Payment struct {
 
 	// Pyaload is request fields except amount and merchant
 	Payload map[string]string
-
-	// Meta is request meta info like client ip
-	Meta map[string]string
 }
 
 func NewDefaultLibrePyament() *LibrePayment {
+	notificator := NewNotificator(newNotificationJournal(), &http.Client{
+		Timeout: time.Second,
+	})
+	notificator.Go()
+
 	return &LibrePayment{
-		stor: NewMemoryStorage(),
+		stor:        NewMemoryStorage(),
+		notificator: notificator,
 	}
 }
 
@@ -51,11 +60,63 @@ func (p *LibrePayment) Status(id string) (Payment, error) {
 }
 
 func (p *LibrePayment) Confirm(id string) error {
-	return p.stor.SetPaymentStatus(id, StatusConfirmed)
+	var spc StoragePayment
+
+	var opError error
+
+	err := p.stor.WithPayment(id, func(sp *StoragePayment) {
+		if sp.Status != StatusNew {
+			opError = ErrWrongPaymentStatus
+			return
+		}
+
+		sp.Status = StatusConfirmed
+		spc = sp.clone()
+	})
+	if err != nil {
+		return fmt.Errorf("cannot confirm payment: %v", err)
+	}
+
+	if opError != nil {
+		return fmt.Errorf("cannot confirm payment: %w", opError)
+	}
+
+	notificationURL, ok := spc.Payload["notificationUrl"]
+	if ok && notificationURL != "" {
+		p.sendNotification(notificationURL, spc.Merchant, StatusConfirmed.String(), spc.ID)
+	}
+
+	return nil
 }
 
 func (p *LibrePayment) Reject(id string) error {
-	return p.stor.SetPaymentStatus(id, StatusRejected)
+	var spc StoragePayment
+
+	var opError error
+
+	err := p.stor.WithPayment(id, func(sp *StoragePayment) {
+		if sp.Status != StatusNew {
+			opError = ErrWrongPaymentStatus
+			return
+		}
+
+		sp.Status = StatusRejected
+		spc = sp.clone()
+	})
+	if err != nil {
+		return fmt.Errorf("cannot reject payment: %v", err)
+	}
+
+	if opError != nil {
+		return fmt.Errorf("cannot reject payment: %v", opError)
+	}
+
+	notificationURL, ok := spc.Payload["notificationUrl"]
+	if ok && notificationURL != "" {
+		p.sendNotification(notificationURL, spc.Merchant, StatusRejected.String(), spc.ID)
+	}
+
+	return nil
 }
 
 func (p *LibrePayment) AllPaymentsDescOrder() ([]Payment, error) {
@@ -77,6 +138,15 @@ func (p *LibrePayment) registerPayment(id string, amount float64, merchant strin
 	err := p.stor.Add(time.Now(), id, amount, merchant, payload)
 
 	return err
+}
+
+func (p *LibrePayment) sendNotification(notificationURL string, merchant string, status string, paymentId string) {
+	p.notificator.Notify(notificationURL, Notification{
+		ID:        paymentId,
+		Merchant:  merchant,
+		Status:    status,
+		ErrorCode: "0",
+	})
 }
 
 func generateID() string {
