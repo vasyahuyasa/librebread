@@ -17,7 +17,11 @@ type Payment struct {
 	Merchant  string
 	Status    string
 
+	// Pyaload is request fields except amount and merchant
 	Payload map[string]string
+
+	// Meta is request meta info like client ip
+	Meta map[string]string
 }
 
 func NewDefaultLibrePyament() *LibrePayment {
@@ -29,7 +33,7 @@ func NewDefaultLibrePyament() *LibrePayment {
 func (p *LibrePayment) Register(merchant string, amount float64, payload map[string]string) (string, error) {
 	internalPaymentID := generateID()
 
-	err := p.stor.Add(time.Now(), internalPaymentID, amount, merchant, payload)
+	err := p.registerPayment(internalPaymentID, amount, merchant, payload)
 	if err != nil {
 		return "", err
 	}
@@ -50,6 +54,10 @@ func (p *LibrePayment) Confirm(id string) error {
 	return p.stor.SetPaymentStatus(id, StatusConfirmed)
 }
 
+func (p *LibrePayment) Reject(id string) error {
+	return p.stor.SetPaymentStatus(id, StatusRejected)
+}
+
 func (p *LibrePayment) AllPaymentsDescOrder() ([]Payment, error) {
 	storagePayments, err := p.stor.GetAllDesc()
 	if err != nil {
@@ -63,6 +71,12 @@ func (p *LibrePayment) AllPaymentsDescOrder() ([]Payment, error) {
 	}
 
 	return payments, nil
+}
+
+func (p *LibrePayment) registerPayment(id string, amount float64, merchant string, payload map[string]string) error {
+	err := p.stor.Add(time.Now(), id, amount, merchant, payload)
+
+	return err
 }
 
 func generateID() string {

@@ -14,8 +14,8 @@ type StoragePayment struct {
 	Amount    float64
 	Merchant  string
 	Status    PaymentStatus
-
-	Payload map[string]string
+	Payload   map[string]string
+	Meta      map[string]string
 }
 
 type MemoryStorage struct {
@@ -98,10 +98,12 @@ func (stor *MemoryStorage) GetAllDesc() ([]StoragePayment, error) {
 	stor.mu.RLock()
 	defer stor.mu.RUnlock()
 
-	list := make([]StoragePayment, len(stor.payments))
+	numPayments := len(stor.payments)
+
+	list := make([]StoragePayment, numPayments)
 
 	for i, p := range stor.payments {
-		list[i] = p.clone()
+		list[numPayments-1-i] = p.clone()
 	}
 
 	return list, nil

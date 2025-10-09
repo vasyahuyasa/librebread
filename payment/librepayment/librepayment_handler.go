@@ -121,7 +121,7 @@ func (h *LibrePaymentHandler) GetPaymentStatus(w http.ResponseWriter, r *http.Re
 func (h *LibrePaymentHandler) ConfirmPayment(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "payment_id")
 
-	err := h.p.stor.SetPaymentStatus(id, StatusConfirmed)
+	err := h.p.Confirm(id)
 	if err != nil {
 		code := http.StatusInternalServerError
 		if errors.Is(err, ErrPaymentNotFound) {
@@ -136,7 +136,7 @@ func (h *LibrePaymentHandler) ConfirmPayment(w http.ResponseWriter, r *http.Requ
 func (h *LibrePaymentHandler) RejectPayment(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "payment_id")
 
-	err := h.p.stor.SetPaymentStatus(id, StatusRejected)
+	err := h.p.Reject(id)
 	if err != nil {
 		code := http.StatusInternalServerError
 		if errors.Is(err, ErrPaymentNotFound) {
