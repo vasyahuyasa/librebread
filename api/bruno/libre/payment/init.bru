@@ -1,0 +1,26 @@
+meta {
+  name: init
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{LIBREBREAD_URL}}/libre/payment
+  body: multipartForm
+  auth: inherit
+}
+
+body:multipart-form {
+  amount: 300
+  merchant: bruno-api-test
+  notificationUrl: http://localhost:9999/libre/333/notification/
+}
+
+vars:post-response {
+  payment_id: res.body.id
+  payment_url: res.body.url
+}
+
+settings {
+  encodeUrl: true
+}

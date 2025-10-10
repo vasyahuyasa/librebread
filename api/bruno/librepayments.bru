@@ -1,0 +1,15 @@
+meta {
+  name: librepayments
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{LIBREBREAD_URL}}/librepayments
+  body: none
+  auth: inherit
+}
+
+settings {
+  encodeUrl: true
+}

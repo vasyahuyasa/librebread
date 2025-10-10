@@ -1,0 +1,15 @@
+meta {
+  name: reject
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{LIBREBREAD_URL}}/libre/payment/{{payment_id}}/reject
+  body: none
+  auth: inherit
+}
+
+settings {
+  encodeUrl: true
+}

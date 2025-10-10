@@ -1,13 +1,21 @@
 package librepayment
 
 import (
+	"errors"
+	"fmt"
+	"net/http"
 	"time"
 
 	uuid "github.com/satori/go.uuid"
 )
 
+const notificationURLFieldName = "notification_url"
+
+var ErrWrongPaymentStatus = errors.New("wrong payment status")
+
 type LibrePayment struct {
-	stor *MemoryStorage
+	stor        *MemoryStorage
+	notificator *Notificator
 }
 
 type Payment struct {
@@ -17,19 +25,34 @@ type Payment struct {
 	Merchant  string
 	Status    string
 
+	// Pyaload is request fields except amount and merchant
 	Payload map[string]string
 }
 
+type JournalRecord struct {
+	TriedAt  time.Time
+	TryNum   int
+	Code     int
+	Response []byte
+	Error    string
+}
+
 func NewDefaultLibrePyament() *LibrePayment {
+	notificator := NewNotificator(newNotificationJournal(), &http.Client{
+		Timeout: time.Second,
+	})
+	notificator.Go()
+
 	return &LibrePayment{
-		stor: NewMemoryStorage(),
+		stor:        NewMemoryStorage(),
+		notificator: notificator,
 	}
 }
 
 func (p *LibrePayment) Register(merchant string, amount float64, payload map[string]string) (string, error) {
 	internalPaymentID := generateID()
 
-	err := p.stor.Add(time.Now(), internalPaymentID, amount, merchant, payload)
+	err := p.registerPayment(internalPaymentID, amount, merchant, payload)
 	if err != nil {
 		return "", err
 	}
@@ -47,7 +70,63 @@ func (p *LibrePayment) Status(id string) (Payment, error) {
 }
 
 func (p *LibrePayment) Confirm(id string) error {
-	return p.stor.SetPaymentStatus(id, StatusConfirmed)
+	var spc StoragePayment
+
+	var opError error
+
+	err := p.stor.WithPayment(id, func(sp *StoragePayment) {
+		if sp.Status != StatusNew {
+			opError = ErrWrongPaymentStatus
+			return
+		}
+
+		sp.Status = StatusConfirmed
+		spc = sp.clone()
+	})
+	if err != nil {
+		return fmt.Errorf("cannot confirm payment: %v", err)
+	}
+
+	if opError != nil {
+		return fmt.Errorf("cannot confirm payment: %w", opError)
+	}
+
+	notificationURL, ok := spc.Payload[notificationURLFieldName]
+	if ok && notificationURL != "" {
+		p.sendNotification(notificationURL, spc.Merchant, StatusConfirmed.String(), spc.ID)
+	}
+
+	return nil
+}
+
+func (p *LibrePayment) Reject(id string) error {
+	var spc StoragePayment
+
+	var opError error
+
+	err := p.stor.WithPayment(id, func(sp *StoragePayment) {
+		if sp.Status != StatusNew {
+			opError = ErrWrongPaymentStatus
+			return
+		}
+
+		sp.Status = StatusRejected
+		spc = sp.clone()
+	})
+	if err != nil {
+		return fmt.Errorf("cannot reject payment: %v", err)
+	}
+
+	if opError != nil {
+		return fmt.Errorf("cannot reject payment: %v", opError)
+	}
+
+	notificationURL, ok := spc.Payload[notificationURLFieldName]
+	if ok && notificationURL != "" {
+		p.sendNotification(notificationURL, spc.Merchant, StatusRejected.String(), spc.ID)
+	}
+
+	return nil
 }
 
 func (p *LibrePayment) AllPaymentsDescOrder() ([]Payment, error) {
@@ -63,6 +142,48 @@ func (p *LibrePayment) AllPaymentsDescOrder() ([]Payment, error) {
 	}
 
 	return payments, nil
+}
+
+func (p *LibrePayment) Journal(id string) ([]JournalRecord, error) {
+	recs, err := p.getJournalRecordsForId(id)
+	if err != nil {
+		if err == errJournalNotJound {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	journal := make([]JournalRecord, len(recs))
+	for i, rec := range recs {
+		journal[i] = JournalRecord{
+			TriedAt:  rec.triedAt,
+			TryNum:   rec.tryNum,
+			Code:     rec.responseCode,
+			Response: rec.response,
+			Error:    rec.err,
+		}
+	}
+
+	return journal, nil
+}
+
+func (p *LibrePayment) registerPayment(id string, amount float64, merchant string, payload map[string]string) error {
+	err := p.stor.Add(time.Now(), id, amount, merchant, payload)
+
+	return err
+}
+
+func (p *LibrePayment) sendNotification(notificationURL string, merchant string, status string, paymentId string) {
+	p.notificator.Notify(notificationURL, Notification{
+		ID:        paymentId,
+		Merchant:  merchant,
+		Status:    status,
+		ErrorCode: "0",
+	})
+}
+
+func (p *LibrePayment) getJournalRecordsForId(id string) ([]journalRecord, error) {
+	return p.notificator.getJournalRecords(id)
 }
 
 func generateID() string {
