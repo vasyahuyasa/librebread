@@ -9,7 +9,9 @@ import (
 	uuid "github.com/satori/go.uuid"
 )
 
-var ErrWrongPaymentStatus = errors.New("Wrong payment status")
+const notificationURLFieldName = "notification_url"
+
+var ErrWrongPaymentStatus = errors.New("wrong payment status")
 
 type LibrePayment struct {
 	stor        *MemoryStorage
@@ -89,7 +91,7 @@ func (p *LibrePayment) Confirm(id string) error {
 		return fmt.Errorf("cannot confirm payment: %w", opError)
 	}
 
-	notificationURL, ok := spc.Payload["notificationUrl"]
+	notificationURL, ok := spc.Payload[notificationURLFieldName]
 	if ok && notificationURL != "" {
 		p.sendNotification(notificationURL, spc.Merchant, StatusConfirmed.String(), spc.ID)
 	}
@@ -119,7 +121,7 @@ func (p *LibrePayment) Reject(id string) error {
 		return fmt.Errorf("cannot reject payment: %v", opError)
 	}
 
-	notificationURL, ok := spc.Payload["notificationUrl"]
+	notificationURL, ok := spc.Payload[notificationURLFieldName]
 	if ok && notificationURL != "" {
 		p.sendNotification(notificationURL, spc.Merchant, StatusRejected.String(), spc.ID)
 	}
