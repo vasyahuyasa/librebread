@@ -27,6 +27,14 @@ type Payment struct {
 	Payload map[string]string
 }
 
+type JournalRecord struct {
+	TriedAt  time.Time
+	TryNum   int
+	Code     int
+	Response []byte
+	Error    string
+}
+
 func NewDefaultLibrePyament() *LibrePayment {
 	notificator := NewNotificator(newNotificationJournal(), &http.Client{
 		Timeout: time.Second,
@@ -134,6 +142,29 @@ func (p *LibrePayment) AllPaymentsDescOrder() ([]Payment, error) {
 	return payments, nil
 }
 
+func (p *LibrePayment) Journal(id string) ([]JournalRecord, error) {
+	recs, err := p.getJournalRecordsForId(id)
+	if err != nil {
+		if err == errJournalNotJound {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	journal := make([]JournalRecord, len(recs))
+	for i, rec := range recs {
+		journal[i] = JournalRecord{
+			TriedAt:  rec.triedAt,
+			TryNum:   rec.tryNum,
+			Code:     rec.responseCode,
+			Response: rec.response,
+			Error:    rec.err,
+		}
+	}
+
+	return journal, nil
+}
+
 func (p *LibrePayment) registerPayment(id string, amount float64, merchant string, payload map[string]string) error {
 	err := p.stor.Add(time.Now(), id, amount, merchant, payload)
 
@@ -147,6 +178,10 @@ func (p *LibrePayment) sendNotification(notificationURL string, merchant string,
 		Status:    status,
 		ErrorCode: "0",
 	})
+}
+
+func (p *LibrePayment) getJournalRecordsForId(id string) ([]journalRecord, error) {
+	return p.notificator.getJournalRecords(id)
 }
 
 func generateID() string {

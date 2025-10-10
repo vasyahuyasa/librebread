@@ -200,14 +200,39 @@ func (h *LibrePaymentHandler) PaymentPage(w http.ResponseWriter, r *http.Request
 		return
 	}
 
+	type templateJournalRecord struct {
+		TriedAt  string
+		TryNum   int
+		Code     int
+		Response string
+		Error    string
+	}
+
 	type templatePayment struct {
 		Time     string
 		ID       string
 		Amount   float64
 		Merchant string
 		Status   string
+		Payload  map[string]string
+		Journal  []templateJournalRecord
+	}
 
-		Payload map[string]string
+	pj, err := h.p.Journal(id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	journal := make([]templateJournalRecord, len(pj))
+	for i, r := range pj {
+		journal[i] = templateJournalRecord{
+			TriedAt:  r.TriedAt.Format("2006-01-02 15:04:05"),
+			TryNum:   r.TryNum,
+			Code:     r.Code,
+			Response: string(r.Response),
+			Error:    r.Error,
+		}
 	}
 
 	templateData := templatePayment{
@@ -216,8 +241,8 @@ func (h *LibrePaymentHandler) PaymentPage(w http.ResponseWriter, r *http.Request
 		Amount:   payment.Amount,
 		Merchant: payment.Merchant,
 		Status:   payment.Status,
-
-		Payload: map[string]string{},
+		Payload:  map[string]string{},
+		Journal:  journal,
 	}
 
 	for k, v := range payment.Payload {

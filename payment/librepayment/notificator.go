@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"container/list"
 	"encoding/json"
+	"errors"
 	"io"
 	"log"
 	"net/http"
@@ -12,6 +13,8 @@ import (
 )
 
 const tickerTick = time.Second * 10
+
+var errJournalNotJound = errors.New("journal not found")
 
 type Notification struct {
 	ID        string
@@ -232,6 +235,10 @@ func (n *Notificator) writeErrJournal(paymentId string, tryNum int, triedAt time
 	})
 }
 
+func (n *Notificator) getJournalRecords(id string) ([]journalRecord, error) {
+	return n.journal.getForId(id)
+}
+
 func (j *notificationJournal) write(paymentId string, r journalRecord) {
 	j.mu.Lock()
 	defer j.mu.Unlock()
@@ -243,4 +250,19 @@ func (j *notificationJournal) write(paymentId string, r journalRecord) {
 	j.byPaymentId[paymentId] = list
 
 	log.Printf("notification id=%s tryNum=%d code=%d response=%s err=%s", paymentId, r.tryNum, r.responseCode, r.response, r.err)
+}
+
+func (j *notificationJournal) getForId(id string) ([]journalRecord, error) {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+
+	list, ok := j.byPaymentId[id]
+	if !ok {
+		return nil, errJournalNotJound
+	}
+
+	records := make([]journalRecord, len(list))
+	copy(records, list)
+
+	return records, nil
 }

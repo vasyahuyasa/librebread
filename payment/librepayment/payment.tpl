@@ -33,3 +33,27 @@
         </tr>
     </tbody>
 </table>
+
+<table border=1>
+    <caption>Notification journal</caption>
+    <thead>
+        <tr>
+            <th scope="col">TriedAt</th>
+            <th scope="col">TryNum</th>
+            <th scope="col">Code</th>
+            <th scope="col">Response</th>
+            <th scope="col">Error</th>
+        </tr>
+    </thead>
+    <tbody>
+        {{ range .Journal}}
+        <tr>
+            <td>{{.TriedAt}}</td>
+            <td>{{.TryNum}}</td>
+            <td>{{.Code}}</td>
+            <td>{{.Response}}</td>
+            <td>{{.Error}}</td>
+        </tr>
+        {{end}}
+    </tbody>
+</table>
