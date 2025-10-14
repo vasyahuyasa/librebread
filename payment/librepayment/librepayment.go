@@ -90,7 +90,7 @@ func (p *LibrePayment) Confirm(id string) error {
 		spc = sp.clone()
 	})
 	if err != nil {
-		return fmt.Errorf("cannot confirm payment: %v", err)
+		return fmt.Errorf("cannot confirm payment: %w", err)
 	}
 
 	if opError != nil {
@@ -99,8 +99,15 @@ func (p *LibrePayment) Confirm(id string) error {
 
 	notificationURL, ok := spc.Payload[notificationURLFieldName]
 	if ok && notificationURL != "" {
-		p.sendNotification(notificationURL, spc.Merchant, StatusConfirmed.String(), spc.ID)
+		// copy
+		moreFields := make(map[string]string, len(spc.Payload))
+		for k, v := range spc.Payload {
+			moreFields[k] = v
+		}
+
+		p.sendNotificationIfNeeded(spc)
 	}
+	p.sendNotificationIfNeeded(spc)
 
 	return nil
 }
@@ -120,17 +127,14 @@ func (p *LibrePayment) Reject(id string) error {
 		spc = sp.clone()
 	})
 	if err != nil {
-		return fmt.Errorf("cannot reject payment: %v", err)
+		return fmt.Errorf("cannot reject payment: %w", err)
 	}
 
 	if opError != nil {
-		return fmt.Errorf("cannot reject payment: %v", opError)
+		return fmt.Errorf("cannot reject payment: %w", opError)
 	}
 
-	notificationURL, ok := spc.Payload[notificationURLFieldName]
-	if ok && notificationURL != "" {
-		p.sendNotification(notificationURL, spc.Merchant, StatusRejected.String(), spc.ID)
-	}
+	p.sendNotificationIfNeeded(spc)
 
 	return nil
 }
@@ -179,12 +183,24 @@ func (p *LibrePayment) registerPayment(id string, amount float64, merchant strin
 	return err
 }
 
-func (p *LibrePayment) sendNotification(notificationURL string, merchant string, status string, paymentId string) {
+func (p *LibrePayment) sendNotificationIfNeeded(sp StoragePayment) {
+	notificationURL, ok := sp.Payload[notificationURLFieldName]
+	if !ok || notificationURL == "" {
+		return
+	}
+
+	// copy
+	moreFields := make(map[string]string, len(sp.Payload))
+	for k, v := range sp.Payload {
+		moreFields[k] = v
+	}
+
 	p.notificator.Notify(notificationURL, Notification{
-		ID:        paymentId,
-		Merchant:  merchant,
-		Status:    status,
-		ErrorCode: "0",
+		ID:               sp.ID,
+		Merchant:         sp.Merchant,
+		Status:           sp.Status.String(),
+		ErrorCode:        "0",
+		NotReqiredFileds: moreFields,
 	})
 }
 
