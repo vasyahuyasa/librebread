@@ -207,11 +207,15 @@ func (n *Notificator) sendNotification(url string, notification Notification) (b
 	}
 
 	body, err := io.ReadAll(resp.Body)
+	strErr := ""
+	if err != nil {
+		strErr = err.Error()
+	}
 
 	return true, response{
 		code: resp.StatusCode,
 		body: body,
-		err:  err.Error(),
+		err:  strErr,
 	}
 }
 
