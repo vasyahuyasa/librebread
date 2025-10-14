@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"log"
 	"net/http"
 	"sync"
 	"time"
@@ -17,10 +16,11 @@ const tickerTick = time.Second * 10
 var errJournalNotJound = errors.New("journal not found")
 
 type Notification struct {
-	ID        string
-	Merchant  string
-	Status    string
-	ErrorCode string
+	ID               string
+	Merchant         string
+	Status           string
+	ErrorCode        string
+	NotReqiredFileds map[string]string
 }
 
 type pendingNotification struct {
@@ -130,7 +130,7 @@ func (n *Notificator) runNotificationWorker() {
 	for notification := range n.nchan {
 		triedAt := time.Now()
 		ok, resp := n.sendNotification(notification.url, notification.n)
-		n.writejournal(notification.n.ID, notification.n, notification.tryNum, triedAt, ok, resp.code, resp.body, resp.err)
+		n.writejournal(notification.n.ID, notification.tryNum, triedAt, resp.code, resp.body, resp.err)
 
 		// requeue
 		if !ok {
@@ -148,15 +148,33 @@ type response struct {
 }
 
 func (n *Notificator) sendNotification(url string, notification Notification) (bool, response) {
-	jsonValue, _ := json.Marshal(map[string]any{
+	payload := map[string]any{
 		"id":        notification.ID,
 		"merchant":  notification.Merchant,
 		"status":    notification.Status,
 		"errorCode": notification.ErrorCode,
-	})
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonValue))
+	}
+
+	for k, v := range notification.NotReqiredFileds {
+		payload[k] = v
+	}
+
+	jsonStrPayload, err := json.Marshal(payload)
 	if err != nil {
-		panic("unexpected request creation error. Must investigate: " + err.Error())
+		return false, response{
+			code: -1,
+			body: nil,
+			err:  err.Error(),
+		}
+	}
+
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStrPayload))
+	if err != nil {
+		return false, response{
+			code: -1,
+			body: nil,
+			err:  err.Error(),
+		}
 	}
 
 	req.Header.Set("Content-Type", "application/json")
@@ -215,7 +233,7 @@ func (n *Notificator) drainReadyNotifications() []pendingNotification {
 	return ready
 }
 
-func (n *Notificator) writejournal(paymentId string, notification Notification, tryNum int, triedAt time.Time, ok bool, responseCode int, response []byte, err string) {
+func (n *Notificator) writejournal(paymentId string, tryNum int, triedAt time.Time, responseCode int, response []byte, err string) {
 	n.journal.write(paymentId, journalRecord{
 		tryNum:       tryNum,
 		triedAt:      triedAt,
@@ -248,8 +266,6 @@ func (j *notificationJournal) write(paymentId string, r journalRecord) {
 	list := j.byPaymentId[paymentId]
 	list = append(list, r)
 	j.byPaymentId[paymentId] = list
-
-	log.Printf("notification id=%s tryNum=%d code=%d response=%s err=%s", paymentId, r.tryNum, r.responseCode, r.response, r.err)
 }
 
 func (j *notificationJournal) getForId(id string) ([]journalRecord, error) {
