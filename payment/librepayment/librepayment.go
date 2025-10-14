@@ -1,6 +1,7 @@
 package librepayment
 
 import (
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"net/http"
@@ -40,6 +41,11 @@ type JournalRecord struct {
 func NewDefaultLibrePyament() *LibrePayment {
 	notificator := NewNotificator(newNotificationJournal(), &http.Client{
 		Timeout: time.Second,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: true, // trus self signed / invalid certificate
+			},
+		},
 	})
 	notificator.Go()
 
