@@ -97,16 +97,6 @@ func (p *LibrePayment) Confirm(id string) error {
 		return fmt.Errorf("cannot confirm payment: %w", opError)
 	}
 
-	notificationURL, ok := spc.Payload[notificationURLFieldName]
-	if ok && notificationURL != "" {
-		// copy
-		moreFields := make(map[string]string, len(spc.Payload))
-		for k, v := range spc.Payload {
-			moreFields[k] = v
-		}
-
-		p.sendNotificationIfNeeded(spc)
-	}
 	p.sendNotificationIfNeeded(spc)
 
 	return nil
