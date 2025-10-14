@@ -90,7 +90,7 @@ func (p *LibrePayment) Confirm(id string) error {
 		spc = sp.clone()
 	})
 	if err != nil {
-		return fmt.Errorf("cannot confirm payment: %v", err)
+		return fmt.Errorf("cannot confirm payment: %w", err)
 	}
 
 	if opError != nil {
@@ -127,11 +127,11 @@ func (p *LibrePayment) Reject(id string) error {
 		spc = sp.clone()
 	})
 	if err != nil {
-		return fmt.Errorf("cannot reject payment: %v", err)
+		return fmt.Errorf("cannot reject payment: %w", err)
 	}
 
 	if opError != nil {
-		return fmt.Errorf("cannot reject payment: %v", opError)
+		return fmt.Errorf("cannot reject payment: %w", opError)
 	}
 
 	p.sendNotificationIfNeeded(spc)
