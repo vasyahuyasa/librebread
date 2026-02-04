@@ -1,4 +1,4 @@
-//go:generate go run github.com/deepmap/oapi-codegen/cmd/oapi-codegen --config oapi-codgen.yml openapi_librebread.yml
+//go:generate go tool oapi-codegen -config oapi-codgen.yml openapi_librebread.yml
 
 package api
 
@@ -15,24 +15,17 @@ type smser interface {
 	Create(from, to, text, provider string) (string, error)
 }
 
-type ticketer interface {
-	LastTickets(limit int64) (HelpdeskEddyTicketList, error)
-	Create(title, description string, typeID, priorityID, departmentID int) error
-}
-
 type LibreBread struct {
-	sms    smser
-	ticket ticketer
-	re     *renderer
+	sms smser
+	re  *renderer
 }
 
 var _ ServerInterface = (*LibreBread)(nil)
 
-func NewLibrebread(sms smser, ticket ticketer) *LibreBread {
+func NewLibrebread(sms smser) *LibreBread {
 	return &LibreBread{
-		sms:    sms,
-		ticket: ticket,
-		re:     newRenderer(),
+		sms: sms,
+		re:  newRenderer(),
 	}
 }
 
@@ -66,7 +59,7 @@ func (lb *LibreBread) GetSms(w http.ResponseWriter, r *http.Request, params GetS
 		}
 	}
 
-	if params.Json != nil && *params.Json {
+	if params.Format != nil && *params.Format == Json {
 		enc := json.NewEncoder(w)
 
 		err = enc.Encode(smses)
@@ -83,6 +76,10 @@ func (lb *LibreBread) GetSms(w http.ResponseWriter, r *http.Request, params GetS
 		http.Error(w, fmt.Sprintf("can not render messages: %v", err), http.StatusInternalServerError)
 		log.Printf("can not render messages: %v", err)
 	}
+}
+
+func (lb *LibreBread) PostLibrePush(w http.ResponseWriter, r *http.Request) {
+	http.Error(w, "not implemented", http.StatusNotImplemented)
 }
 
 func (lb *LibreBread) PostLibreSend(w http.ResponseWriter, r *http.Request) {
@@ -121,61 +118,6 @@ func (lb *LibreBread) PostLibreSend(w http.ResponseWriter, r *http.Request) {
 
 func (lb *LibreBread) PostLibreCheck(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, http.StatusText(http.StatusNotImplemented), http.StatusNotImplemented)
-}
-
-func (lb *LibreBread) GetHelpdeskEddyTicket(w http.ResponseWriter, r *http.Request, params GetHelpdeskEddyTicketParams) {
-	var limit int64 = 50
-	if params.Limit != nil {
-		limit = *params.Limit
-	}
-
-	tickets, err := lb.ticket.LastTickets(limit)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("can not get helpdeskeddy tickets: %v", err), http.StatusInternalServerError)
-		log.Printf("can not get helpdeskeddy messages: %v", err)
-		return
-	}
-
-	if params.Json != nil && *params.Json {
-		enc := json.NewEncoder(w)
-
-		err = enc.Encode(tickets)
-		if err != nil {
-			http.Error(w, fmt.Sprintf("can not encode messages: %v", err), http.StatusInternalServerError)
-			log.Printf("can not encode messages: %v", err)
-		}
-
-		return
-	}
-
-	err = lb.re.renderHelpdeskeddy(w, tickets)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("can not render messages: %v", err), http.StatusInternalServerError)
-		log.Printf("can not render messages: %v", err)
-	}
-}
-
-func (lb *LibreBread) PostHelpdeskEddyTicket(w http.ResponseWriter, r *http.Request) {
-	title := r.FormValue("title")
-	description := r.FormValue("description")
-
-	if title == "" || description == "" {
-		http.Error(w, "title and description required", http.StatusBadRequest)
-		return
-	}
-
-	typeID := atoiOrZero(r.FormValue("type_id"))
-	priorityID := atoiOrZero(r.FormValue("priority_id"))
-	departmentID := atoiOrZero(r.FormValue("department_id"))
-
-	err := lb.ticket.Create(title, description, typeID, priorityID, departmentID)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("can not create HelpdeskEddy ticket: %v", err), http.StatusInternalServerError)
-		log.Printf("can not create HelpdeskEddy ticket: %v", err)
-		return
-	}
-
-	log.Printf("HelpdeskEddy ticket created")
 }
 
 func atoiOrZero(str string) int {

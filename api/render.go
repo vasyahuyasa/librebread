@@ -15,7 +15,6 @@ func newRenderer() *renderer {
 	r := &renderer{}
 
 	r.smsTemplate = parseTemplates("sms", baseTmplate, smsTemplate)
-
 	r.helpdeskeddyTemplate = parseTemplates("helpdeskeddy", baseTmplate, helpdeskeddyTemplate)
 
 	return r
@@ -37,8 +36,4 @@ func parseTemplates(name string, tmpls ...string) *template.Template {
 
 func (re *renderer) renderSms(w http.ResponseWriter, smses SMSList) error {
 	return re.smsTemplate.Execute(w, smses)
-}
-
-func (re *renderer) renderHelpdeskeddy(w http.ResponseWriter, tickets HelpdeskEddyTicketList) error {
-	return re.helpdeskeddyTemplate.Execute(w, tickets)
 }

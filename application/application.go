@@ -26,9 +26,8 @@ func (app *Application) Run() error {
 	}
 
 	sms := infrastructure.NewSQLSMSRepo(db)
-	hd := infrastructure.NewSQLHelpdeskRepo(db)
 
-	l := api.NewLibrebread(sms, hd)
+	l := api.NewLibrebread(sms)
 	h := api.Handler(l)
 
 	srv := web.NewServer(h)

@@ -1,13 +1,13 @@
 openapi: 3.0.0
 info:
   title: LibreBread API
-  version: 0.0.2
+  version: 2.0.0
 paths:
   /:
     get:
       responses:
         '302':
-          description: Redirect to sms handler
+          description: Redirect to default subsystem. SMS by default
           headers:
             Location:
               schema:
@@ -24,10 +24,14 @@ paths:
             default: 50
           description: The number of latest sms
         - in: query
-          name: json
+          name: format
           schema:
-            type: boolean
-          description: Should be JSON response
+            type: string
+            enum:
+              - json
+              - html
+            default: html
+          description: Output format
       responses:
         '200':
           description: A array of SMS
@@ -36,42 +40,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/SMSList'
             text/html:
-              schema:
-                type: string
-        '500':
-          description: Internal error ocured
-          content:
-            text/plain:
-              schema:
-                type: string
-  /helpdesk:
-    get:
-      operationId: GetHelpdeskEddyTicket
-      summary: List tickets
-      description: List tickets
-      parameters:
-        - in: query
-          name: limit
-          schema:
-            type: integer
-            format: int64
-            default: 50
-          description: The number of latest sms
-        - in: query
-          name: json
-          schema:
-            type: boolean
-          description: Should be JSON response
-      responses:
-        '200':
-          description: A array of tickets (default last 50)
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HelpdeskEddyTicketList'
-            text/html:
-              schema:
-                type: string
         '500':
           description: Internal error ocured
           content:
@@ -147,47 +115,6 @@ paths:
           description: Mailformed request body
         '422':
           description: Wrong input params
-
-  /api/v2/tickets:    
-    post:
-      operationId: PostHelpdeskEddyTicket
-      summary: Create HelpdeskEddy ticket
-      description: Create HelpdeskEddy ticket
-      requestBody:
-        required: true
-        content:
-          application/x-www-form-urlencoded:
-            schema:
-              type: object
-              required:
-                - title
-                - description
-              properties:
-                type_id:
-                  type: integer
-                priority_id:
-                  type: integer
-                department_id:
-                  type: integer
-                title:
-                  type: string
-                description:
-                  type: string
-      responses:
-        '200':
-          description: Ticket succesfuly created
-        '400':
-          description: One of required fileds is missed
-          content:
-            text/plain:
-              schema:
-                type: string
-        '500':
-          description: Internal error ocured
-          content:
-            text/plain:
-              schema:
-                type: string
 components:
   schemas:
     SMS:
@@ -221,36 +148,3 @@ components:
       type: array
       items:
         type: string
-    HelpdeskEddyTicket:
-      type: object
-      required:
-        - ID
-        - Time
-        - TypeId
-        - PriorityId
-        - DepartmentId
-        - Title
-        - Description
-      properties:
-        ID:
-          type: string
-        Time:
-          type: string
-          format: date-time
-        TypeId:
-          type: integer
-          minimum : 0
-        PriorityId:
-          type: integer
-          minimum : 0
-        DepartmentId:
-          type: integer
-          minimum : 0
-        Title:
-          type: string
-        Description:
-          type: string
-    HelpdeskEddyTicketList:
-      type: array
-      items:
-        $ref: '#/components/schemas/HelpdeskEddyTicket'
