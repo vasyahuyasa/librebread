@@ -41,14 +41,77 @@ paths:
                 $ref: '#/components/schemas/SMSList'
             text/html:
         '500':
-          description: Internal error ocured
-          content:
-            text/plain:
-              schema:
-                type: string
+          description: Internal error with text description 
+  /email:
+    get:
+      summary: List of email sent via smtp or api
+      responses:
+        '200':
+          components:
+            text/html:
+        '500':
+          description: Internal error with text description 
+  /push:
+    get:
+      summary: List of push sent via librebread push api
+      responses:
+        '200':
+          components:
+            text/html:
+        '500':
+          description: Internal error with text description 
+  /flashcall:
+    get:
+      summary: List of flashcall request with codes throu flashcall providers
+      responses:
+        '200':
+          components:
+            text/html:
+        '500':
+          description: Internal error with text description 
+  /payments:
+    get:
+      summary: List of online payment requests
+      responses:
+        '200':
+          components:
+            text/html:
+        '500':
+          description: Internal error with text description 
+  /payments/{paymentId}:
+    get:
+      summary: Pyament data
+      responses:
+        '200':
+          components:
+            text/html:
+        '404':
+          summary: Payment not found
+        '500':
+          description: Internal error with text description
+  /payments/{paymentId}/{action}:
+    post:
+      summary: Execute supported action on payment
+      responses:
+        '200':
+          summary: Ok
+        '404':
+          summary: Pyament not found
+        '422':
+          summary: Unknown or not supported action on payment
+        '500':
+          description: Internal error with text description
+  /telegram:
+    get:
+      summary: List of messages with mock telegram bot api
+      responses:
+        '200':
+          summary: Ok
+        '500':
+          description: Internal error with text description
   /libre/send:
     post:
-      summary: Send the fake SMS
+      summary: Send the SMS via LibreSMS provider 
       requestBody:
         required: true
         content:
@@ -97,7 +160,7 @@ paths:
           description: Not implemented
   /libre/push:
     post:
-      description: Send push-like message
+      description: Send push-like message via LibrePush
       requestBody:
         required: true
         content:
