@@ -80,9 +80,17 @@ __LibrePayment__
 | URL                          | DESCRIPTION |
 |------------------------------|-------------|
 | `/libre/payment`             | creates payment |
-| `/libre/payment/{id}`        | payment status |
-| `/libre/payment/{id}/confirm`| confirm payment |
-| `/libre/payment/{id}/reject` | reject payment |
+| `/libre/payment/{id}`        | get payment info |
+| `/libre/payment/{id}/confirm`| Confirm authorization hold, not implemented |
+| ~~`/libre/payment/{id}/reject`~~ | Deprecated: Customer want cancel payment |
+| `/libre/payment/{id}/pay` | Customer paid |
+| `/libre/payment/{id}/cancel` | Customer want cancel or refund payment |
+| `/libre/payment/{id}/status/canceled` | Force status to canceled  |
+| `/libre/payment/{id}/status/authorizing` | Force status to authorizing  |
+| `/libre/payment/{id}/status/rejected` | Force status to rejected  |
+| `/libre/payment/{id}/status/confirmed` | Force status to confirmed  |
+| `/libre/payment/{id}/status/refunding` | Force status to refunding  |
+| `/libre/payment/{id}/status/refunded` | Force status to refunded  |
 
 | Environment             | Description |
 |-------------------------|-------------|
@@ -92,6 +100,27 @@ __LibreTelegram__
 | URL                          | DESCRIPTION |
 |------------------------------|-------------|
 | `/telegram/{botToken}/{botMethod}`    | Telegram bot api request |
+
+### LibrePayment payment state diagram
+
+```mermaid
+stateDiagram-v2
+    [*] --> new
+    new --> canceled: Cancel
+    new --> formShowed: Form opened in browser
+    formShowed --> authorizing: Customer paid
+    formShowed --> deadlineExpired: Timeout
+    new --> deadlineExpired: Timeout    
+    formShowed --> canceled: Cancel
+    authorizing --> authorized: Authorization hold
+    authorizing --> rejected: Cancel or error
+    authorized --> rejected: Cancel
+    authorized --> confirming
+    confirming --> confirmed
+    confirming --> rejected: Cancel
+    confirmed --> refunding: Cancel
+    refunding --> refunded
+```
 
 ### SMTP 25 port
 

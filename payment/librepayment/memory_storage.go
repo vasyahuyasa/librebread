@@ -6,8 +6,6 @@ import (
 	"time"
 )
 
-type PaymentStatus int
-
 type StoragePayment struct {
 	CreatedAt time.Time
 	ID        string
@@ -18,18 +16,18 @@ type StoragePayment struct {
 	Meta      map[string]string
 }
 
+type StatusJournalRecord struct {
+	CreatedAt time.Time
+	EventAt   time.Time
+	Status    PaymentStatus
+}
+
 type MemoryStorage struct {
 	payments     []*StoragePayment
 	paymentsByID map[string]*StoragePayment
 
 	mu *sync.RWMutex
 }
-
-const (
-	StatusNew PaymentStatus = iota + 1
-	StatusConfirmed
-	StatusRejected
-)
 
 var (
 	ErrPaymentAlreadyRegistered = fmt.Errorf("payment with id already registered")
@@ -148,6 +146,30 @@ func (status PaymentStatus) String() string {
 
 	case StatusRejected:
 		return "rejected"
+
+	case StatusFormShowed:
+		return "formShowed"
+
+	case StatusDeadlineExpired:
+		return "deadlineExpired"
+
+	case StatusCanceled:
+		return "canceled"
+
+	case StatusAuthorizing:
+		return "authorizing"
+
+	case StatusAuthorized:
+		return "authorized"
+
+	case StatusConfirming:
+		return "confirming"
+
+	case StatusRefunding:
+		return "refunding"
+
+	case StatusRefunded:
+		return "refunded"
 
 	default:
 		return fmt.Sprintf("unknown: %d", int(status))

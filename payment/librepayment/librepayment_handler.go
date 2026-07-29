@@ -108,7 +108,7 @@ func (h *LibrePaymentHandler) GetPaymentStatus(w http.ResponseWriter, r *http.Re
 	err = json.NewEncoder(w).Encode(response{
 		CreatedAT: payment.CreatedAt.Format("2006-01-02 15:04:05"),
 		ID:        payment.ID,
-		Status:    payment.Status,
+		Status:    payment.Status(),
 		Amount:    payment.Amount,
 		Merchant:  payment.Merchant,
 	})
@@ -154,6 +154,26 @@ func (h *LibrePaymentHandler) RejectPayment(w http.ResponseWriter, r *http.Reque
 	}
 }
 
+func (h *LibrePaymentHandler) MakeHandlerForForceSetStatus(status PaymentStatus) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := chi.URLParam(r, "payment_id")
+
+		err := h.p.ForceSetStatus(id, status)
+		if err != nil {
+			code := http.StatusInternalServerError
+			if errors.Is(err, ErrPaymentNotFound) {
+				code = http.StatusNotFound
+			}
+			if errors.Is(err, ErrWrongPaymentStatus) {
+				code = http.StatusUnprocessableEntity
+			}
+
+			http.Error(w, err.Error(), code)
+			return
+		}
+	}
+}
+
 func (h *LibrePaymentHandler) IndexPage(w http.ResponseWriter, r *http.Request) {
 	type templatePayment struct {
 		Time     string
@@ -176,7 +196,7 @@ func (h *LibrePaymentHandler) IndexPage(w http.ResponseWriter, r *http.Request) 
 			ID:       p.ID,
 			Amount:   p.Amount,
 			Merchant: p.Merchant,
-			Status:   p.Status,
+			Status:   p.Status(),
 		}
 	}
 
@@ -240,7 +260,7 @@ func (h *LibrePaymentHandler) PaymentPage(w http.ResponseWriter, r *http.Request
 		ID:       payment.ID,
 		Amount:   payment.Amount,
 		Merchant: payment.Merchant,
-		Status:   payment.Status,
+		Status:   payment.Status(),
 		Payload:  map[string]string{},
 		Journal:  journal,
 	}

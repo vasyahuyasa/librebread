@@ -1,0 +1,16 @@
+meta {
+  name: refunding
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{LIBREBREAD_URL}}/libre/payment/{{payment_id}}/status/refunding
+  body: none
+  auth: inherit
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
