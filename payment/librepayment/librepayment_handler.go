@@ -108,7 +108,7 @@ func (h *LibrePaymentHandler) GetPaymentStatus(w http.ResponseWriter, r *http.Re
 	err = json.NewEncoder(w).Encode(response{
 		CreatedAT: payment.CreatedAt.Format("2006-01-02 15:04:05"),
 		ID:        payment.ID,
-		Status:    payment.Status,
+		Status:    payment.Status(),
 		Amount:    payment.Amount,
 		Merchant:  payment.Merchant,
 	})
@@ -136,6 +136,7 @@ func (h *LibrePaymentHandler) ConfirmPayment(w http.ResponseWriter, r *http.Requ
 	}
 }
 
+// Deprecated: RejectPayment is deprecaded prior to CancelPayment nad will be removed in future
 func (h *LibrePaymentHandler) RejectPayment(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "payment_id")
 
@@ -151,6 +152,44 @@ func (h *LibrePaymentHandler) RejectPayment(w http.ResponseWriter, r *http.Reque
 
 		http.Error(w, err.Error(), code)
 		return
+	}
+}
+
+func (h *LibrePaymentHandler) CancelPayment(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "payment_id")
+
+	err := h.p.Cancel(id)
+	if err != nil {
+		code := http.StatusInternalServerError
+		if errors.Is(err, ErrPaymentNotFound) {
+			code = http.StatusNotFound
+		}
+		if errors.Is(err, ErrWrongPaymentStatus) {
+			code = http.StatusUnprocessableEntity
+		}
+
+		http.Error(w, err.Error(), code)
+		return
+	}
+}
+
+func (h *LibrePaymentHandler) MakeHandlerForForceSetStatus(status PaymentStatus) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := chi.URLParam(r, "payment_id")
+
+		err := h.p.ForceSetStatus(id, status)
+		if err != nil {
+			code := http.StatusInternalServerError
+			if errors.Is(err, ErrPaymentNotFound) {
+				code = http.StatusNotFound
+			}
+			if errors.Is(err, ErrWrongPaymentStatus) {
+				code = http.StatusUnprocessableEntity
+			}
+
+			http.Error(w, err.Error(), code)
+			return
+		}
 	}
 }
 
@@ -176,7 +215,7 @@ func (h *LibrePaymentHandler) IndexPage(w http.ResponseWriter, r *http.Request) 
 			ID:       p.ID,
 			Amount:   p.Amount,
 			Merchant: p.Merchant,
-			Status:   p.Status,
+			Status:   p.Status(),
 		}
 	}
 
@@ -208,14 +247,20 @@ func (h *LibrePaymentHandler) PaymentPage(w http.ResponseWriter, r *http.Request
 		Error    string
 	}
 
+	type templateStatusHistoryRecord struct {
+		Date   string
+		Status string
+	}
+
 	type templatePayment struct {
-		Time     string
-		ID       string
-		Amount   float64
-		Merchant string
-		Status   string
-		Payload  map[string]string
-		Journal  []templateJournalRecord
+		Time          string
+		ID            string
+		Amount        float64
+		Merchant      string
+		Status        string
+		Payload       map[string]string
+		StatusHistory []templateStatusHistoryRecord
+		Journal       []templateJournalRecord
 	}
 
 	pj, err := h.p.Journal(id)
@@ -235,14 +280,23 @@ func (h *LibrePaymentHandler) PaymentPage(w http.ResponseWriter, r *http.Request
 		}
 	}
 
+	statusHistory := make([]templateStatusHistoryRecord, len(payment.StatusHistory))
+	for i, record := range payment.StatusHistory {
+		statusHistory[i] = templateStatusHistoryRecord{
+			Date:   record.EventAt.Format("2006-01-02 15:04:05"),
+			Status: record.Status.String(),
+		}
+	}
+
 	templateData := templatePayment{
-		Time:     payment.CreatedAt.Format("2006-01-02 15:04:05"),
-		ID:       payment.ID,
-		Amount:   payment.Amount,
-		Merchant: payment.Merchant,
-		Status:   payment.Status,
-		Payload:  map[string]string{},
-		Journal:  journal,
+		Time:          payment.CreatedAt.Format("2006-01-02 15:04:05"),
+		ID:            payment.ID,
+		Amount:        payment.Amount,
+		Merchant:      payment.Merchant,
+		Status:        payment.Status(),
+		Payload:       map[string]string{},
+		StatusHistory: statusHistory,
+		Journal:       journal,
 	}
 
 	for k, v := range payment.Payload {

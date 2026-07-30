@@ -24,11 +24,40 @@ type Payment struct {
 	ID        string
 	Amount    float64
 	Merchant  string
-	Status    string
 
 	// Pyaload is request fields except amount and merchant
 	Payload map[string]string
+
+	StatusHistory []StatusHistoryRecord
+
+	realStatus PaymentStatus
 }
+
+type StatusHistoryRecord struct {
+	EventAt time.Time
+	Status  PaymentStatus
+}
+
+type PaymentStatus int
+
+// New -> FormShowed -> Authorizing -> Authorized -> Confirming -> Confirmed
+// | (New, FormShowed) -> DeadlineExpired
+// | (New, FormShowed) -> Canceled
+// | (Authorizing, Authorized, Confirming) -> Rejected
+// | Confirmed -> Refunded
+const (
+	StatusNew PaymentStatus = iota + 1
+	StatusFormShowed
+	StatusDeadlineExpired
+	StatusCanceled
+	StatusAuthorizing
+	StatusAuthorized
+	StatusConfirming
+	StatusConfirmed
+	StatusRejected
+	StatusRefunding
+	StatusRefunded
+)
 
 type JournalRecord struct {
 	TriedAt  time.Time
@@ -81,12 +110,15 @@ func (p *LibrePayment) Confirm(id string) error {
 	var opError error
 
 	err := p.stor.WithPayment(id, func(sp *StoragePayment) {
-		if sp.Status != StatusNew {
-			opError = ErrWrongPaymentStatus
+		payment := storagePaymentToEntity(*sp)
+
+		confirmErr := payment.Confirm()
+		if confirmErr != nil {
+			opError = confirmErr
 			return
 		}
 
-		sp.Status = StatusConfirmed
+		sp.setStatus(payment.currentStatus(), time.Now())
 		spc = sp.clone()
 	})
 	if err != nil {
@@ -103,25 +135,49 @@ func (p *LibrePayment) Confirm(id string) error {
 }
 
 func (p *LibrePayment) Reject(id string) error {
+	return p.Cancel(id)
+}
+
+func (p *LibrePayment) Cancel(id string) error {
 	var spc StoragePayment
 
 	var opError error
 
 	err := p.stor.WithPayment(id, func(sp *StoragePayment) {
-		if sp.Status != StatusNew {
-			opError = ErrWrongPaymentStatus
+		payment := storagePaymentToEntity(*sp)
+
+		canelError := payment.Cancel()
+		if canelError != nil {
+			opError = canelError
 			return
 		}
 
-		sp.Status = StatusRejected
+		sp.setStatus(payment.currentStatus(), time.Now())
 		spc = sp.clone()
 	})
 	if err != nil {
-		return fmt.Errorf("cannot reject payment: %w", err)
+		return fmt.Errorf("cannot get payment for cancel: %w", err)
 	}
 
 	if opError != nil {
-		return fmt.Errorf("cannot reject payment: %w", opError)
+		return fmt.Errorf("cannot cancel payment: %w", opError)
+	}
+
+	p.sendNotificationIfNeeded(spc)
+
+	return nil
+}
+
+func (p *LibrePayment) ForceSetStatus(id string, status PaymentStatus) error {
+	var spc StoragePayment
+
+	err := p.stor.WithPayment(id, func(sp *StoragePayment) {
+		sp.setStatus(status, time.Now())
+		spc = sp.clone()
+	})
+
+	if err != nil {
+		return fmt.Errorf("cannot confirm payment: %w", err)
 	}
 
 	p.sendNotificationIfNeeded(spc)
@@ -198,19 +254,78 @@ func (p *LibrePayment) getJournalRecordsForId(id string) ([]journalRecord, error
 	return p.notificator.getJournalRecords(id)
 }
 
+func (p *Payment) Confirm() error {
+	if !p.canBeConfirmed() {
+		return ErrWrongPaymentStatus
+
+	}
+
+	// TODO: implement move to next status by SFM
+	p.realStatus = StatusConfirmed
+
+	return nil
+}
+
+func (p *Payment) Cancel() error {
+	if !p.canBeCanceled() {
+		return ErrWrongPaymentStatus
+	}
+
+	// TODO: implement move to next status by SFM
+	switch p.realStatus {
+	case StatusNew, StatusFormShowed:
+		p.realStatus = StatusCanceled
+
+	case StatusAuthorizing, StatusAuthorized, StatusConfirming:
+		p.realStatus = StatusRejected
+
+	case StatusConfirmed:
+		p.realStatus = StatusRefunded
+
+	default:
+		return ErrWrongPaymentStatus
+	}
+
+	return nil
+}
+
+func (p *Payment) Status() string {
+	return p.realStatus.String()
+}
+
+func (p *Payment) canBeConfirmed() bool {
+	return p.realStatus == StatusNew || p.realStatus == StatusFormShowed
+}
+
+func (p *Payment) canBeCanceled() bool {
+	return p.realStatus == StatusNew ||
+		p.realStatus == StatusFormShowed ||
+		p.realStatus == StatusAuthorizing ||
+		p.realStatus == StatusAuthorized ||
+		p.realStatus == StatusConfirming ||
+		p.realStatus == StatusConfirmed
+}
+
+func (p *Payment) currentStatus() PaymentStatus {
+	return p.realStatus
+}
+
 func generateID() string {
 	return uuid.NewV4().String()
 }
 
 func storagePaymentToEntity(p StoragePayment) Payment {
 	payment := Payment{
-		CreatedAt: p.CreatedAt,
-		ID:        p.ID,
-		Amount:    p.Amount,
-		Merchant:  p.Merchant,
-		Status:    p.Status.String(),
-		Payload:   map[string]string{},
+		CreatedAt:     p.CreatedAt,
+		ID:            p.ID,
+		Amount:        p.Amount,
+		Merchant:      p.Merchant,
+		realStatus:    p.Status,
+		Payload:       map[string]string{},
+		StatusHistory: make([]StatusHistoryRecord, len(p.StatusHistory)),
 	}
+
+	copy(payment.StatusHistory, p.StatusHistory)
 
 	for k, v := range p.Payload {
 		payment.Payload[k] = v

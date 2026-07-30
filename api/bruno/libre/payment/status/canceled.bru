@@ -1,0 +1,16 @@
+meta {
+  name: canceled
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{LIBREBREAD_URL}}/libre/payment/{{payment_id}}/status/canceled
+  body: none
+  auth: inherit
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

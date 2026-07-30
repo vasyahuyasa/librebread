@@ -1,0 +1,16 @@
+meta {
+  name: confirmed
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{LIBREBREAD_URL}}/libre/payment/{{payment_id}}/status/confirmed
+  body: none
+  auth: inherit
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
