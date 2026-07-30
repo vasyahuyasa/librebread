@@ -24,12 +24,18 @@ type Payment struct {
 	ID        string
 	Amount    float64
 	Merchant  string
-	//Status    string
 
 	// Pyaload is request fields except amount and merchant
 	Payload map[string]string
 
+	StatusHistory []StatusHistoryRecord
+
 	realStatus PaymentStatus
+}
+
+type StatusHistoryRecord struct {
+	EventAt time.Time
+	Status  PaymentStatus
 }
 
 type PaymentStatus int
@@ -112,7 +118,7 @@ func (p *LibrePayment) Confirm(id string) error {
 			return
 		}
 
-		sp.Status = payment.currentStatus()
+		sp.setStatus(payment.currentStatus(), time.Now())
 		spc = sp.clone()
 	})
 	if err != nil {
@@ -146,7 +152,7 @@ func (p *LibrePayment) Cancel(id string) error {
 			return
 		}
 
-		sp.Status = payment.currentStatus()
+		sp.setStatus(payment.currentStatus(), time.Now())
 		spc = sp.clone()
 	})
 	if err != nil {
@@ -166,7 +172,7 @@ func (p *LibrePayment) ForceSetStatus(id string, status PaymentStatus) error {
 	var spc StoragePayment
 
 	err := p.stor.WithPayment(id, func(sp *StoragePayment) {
-		sp.Status = status
+		sp.setStatus(status, time.Now())
 		spc = sp.clone()
 	})
 
@@ -310,13 +316,16 @@ func generateID() string {
 
 func storagePaymentToEntity(p StoragePayment) Payment {
 	payment := Payment{
-		CreatedAt:  p.CreatedAt,
-		ID:         p.ID,
-		Amount:     p.Amount,
-		Merchant:   p.Merchant,
-		realStatus: p.Status,
-		Payload:    map[string]string{},
+		CreatedAt:     p.CreatedAt,
+		ID:            p.ID,
+		Amount:        p.Amount,
+		Merchant:      p.Merchant,
+		realStatus:    p.Status,
+		Payload:       map[string]string{},
+		StatusHistory: make([]StatusHistoryRecord, len(p.StatusHistory)),
 	}
+
+	copy(payment.StatusHistory, p.StatusHistory)
 
 	for k, v := range p.Payload {
 		payment.Payload[k] = v

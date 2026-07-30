@@ -7,19 +7,14 @@ import (
 )
 
 type StoragePayment struct {
-	CreatedAt time.Time
-	ID        string
-	Amount    float64
-	Merchant  string
-	Status    PaymentStatus
-	Payload   map[string]string
-	Meta      map[string]string
-}
-
-type StatusJournalRecord struct {
-	CreatedAt time.Time
-	EventAt   time.Time
-	Status    PaymentStatus
+	CreatedAt     time.Time
+	ID            string
+	Amount        float64
+	Merchant      string
+	Status        PaymentStatus
+	StatusHistory []StatusHistoryRecord
+	Payload       map[string]string
+	Meta          map[string]string
 }
 
 type MemoryStorage struct {
@@ -57,7 +52,13 @@ func (stor *MemoryStorage) Add(createdAt time.Time, id string, amount float64, m
 		Amount:    amount,
 		Merchant:  merchant,
 		Status:    StatusNew,
-		Payload:   payload,
+		StatusHistory: []StatusHistoryRecord{
+			{
+				EventAt: createdAt,
+				Status:  StatusNew,
+			},
+		},
+		Payload: payload,
 	}
 
 	stor.payments = append(stor.payments, payment)
@@ -79,11 +80,10 @@ func (stor *MemoryStorage) Get(id string) (StoragePayment, error) {
 }
 
 // WithPayment retrieves a payment by ID and runs the given function with it.
-// It uses a read lock for thread-safe access. If the payment doesn't exist,
-// the function returns an error and the callback is not called.
+// It uses a write lock because callers mutate the stored payment.
 func (stor *MemoryStorage) WithPayment(id string, f func(*StoragePayment)) error {
-	stor.mu.RLock()
-	defer stor.mu.RUnlock()
+	stor.mu.Lock()
+	defer stor.mu.Unlock()
 
 	p, err := stor.get(id)
 	if err != nil {
@@ -119,15 +119,30 @@ func (stor *MemoryStorage) get(id string) (*StoragePayment, error) {
 	return p, nil
 }
 
+func (payment *StoragePayment) setStatus(status PaymentStatus, eventAt time.Time) {
+	if payment.Status == status {
+		return
+	}
+
+	payment.Status = status
+	payment.StatusHistory = append(payment.StatusHistory, StatusHistoryRecord{
+		EventAt: eventAt,
+		Status:  status,
+	})
+}
+
 func (payment *StoragePayment) clone() StoragePayment {
 	p := StoragePayment{
-		CreatedAt: payment.CreatedAt,
-		ID:        payment.ID,
-		Amount:    payment.Amount,
-		Merchant:  payment.Merchant,
-		Status:    payment.Status,
-		Payload:   map[string]string{},
+		CreatedAt:     payment.CreatedAt,
+		ID:            payment.ID,
+		Amount:        payment.Amount,
+		Merchant:      payment.Merchant,
+		Status:        payment.Status,
+		StatusHistory: make([]StatusHistoryRecord, len(payment.StatusHistory)),
+		Payload:       map[string]string{},
 	}
+
+	copy(p.StatusHistory, payment.StatusHistory)
 
 	for k, v := range payment.Payload {
 		p.Payload[k] = v

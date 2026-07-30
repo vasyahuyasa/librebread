@@ -85,8 +85,13 @@ __LibrePayment__
 | ~~`/libre/payment/{id}/reject`~~ | Deprecated: Customer want cancel payment |
 | `/libre/payment/{id}/pay` | Customer paid |
 | `/libre/payment/{id}/cancel` | Customer want cancel or refund payment |
+| `/libre/payment/{id}/status/new` | Force status to new  |
+| `/libre/payment/{id}/status/formShowed` | Force status to formShowed  |
+| `/libre/payment/{id}/status/deadlineExpired` | Force status to deadlineExpired  |
 | `/libre/payment/{id}/status/canceled` | Force status to canceled  |
 | `/libre/payment/{id}/status/authorizing` | Force status to authorizing  |
+| `/libre/payment/{id}/status/authorized` | Force status to authorized  |
+| `/libre/payment/{id}/status/confirming` | Force status to confirming  |
 | `/libre/payment/{id}/status/rejected` | Force status to rejected  |
 | `/libre/payment/{id}/status/confirmed` | Force status to confirmed  |
 | `/libre/payment/{id}/status/refunding` | Force status to refunding  |

@@ -247,14 +247,20 @@ func (h *LibrePaymentHandler) PaymentPage(w http.ResponseWriter, r *http.Request
 		Error    string
 	}
 
+	type templateStatusHistoryRecord struct {
+		Date   string
+		Status string
+	}
+
 	type templatePayment struct {
-		Time     string
-		ID       string
-		Amount   float64
-		Merchant string
-		Status   string
-		Payload  map[string]string
-		Journal  []templateJournalRecord
+		Time          string
+		ID            string
+		Amount        float64
+		Merchant      string
+		Status        string
+		Payload       map[string]string
+		StatusHistory []templateStatusHistoryRecord
+		Journal       []templateJournalRecord
 	}
 
 	pj, err := h.p.Journal(id)
@@ -274,14 +280,23 @@ func (h *LibrePaymentHandler) PaymentPage(w http.ResponseWriter, r *http.Request
 		}
 	}
 
+	statusHistory := make([]templateStatusHistoryRecord, len(payment.StatusHistory))
+	for i, record := range payment.StatusHistory {
+		statusHistory[i] = templateStatusHistoryRecord{
+			Date:   record.EventAt.Format("2006-01-02 15:04:05"),
+			Status: record.Status.String(),
+		}
+	}
+
 	templateData := templatePayment{
-		Time:     payment.CreatedAt.Format("2006-01-02 15:04:05"),
-		ID:       payment.ID,
-		Amount:   payment.Amount,
-		Merchant: payment.Merchant,
-		Status:   payment.Status(),
-		Payload:  map[string]string{},
-		Journal:  journal,
+		Time:          payment.CreatedAt.Format("2006-01-02 15:04:05"),
+		ID:            payment.ID,
+		Amount:        payment.Amount,
+		Merchant:      payment.Merchant,
+		Status:        payment.Status(),
+		Payload:       map[string]string{},
+		StatusHistory: statusHistory,
+		Journal:       journal,
 	}
 
 	for k, v := range payment.Payload {
