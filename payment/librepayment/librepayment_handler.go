@@ -136,10 +136,29 @@ func (h *LibrePaymentHandler) ConfirmPayment(w http.ResponseWriter, r *http.Requ
 	}
 }
 
+// Deprecated: RejectPayment is deprecaded prior to CancelPayment nad will be removed in future
 func (h *LibrePaymentHandler) RejectPayment(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "payment_id")
 
 	err := h.p.Reject(id)
+	if err != nil {
+		code := http.StatusInternalServerError
+		if errors.Is(err, ErrPaymentNotFound) {
+			code = http.StatusNotFound
+		}
+		if errors.Is(err, ErrWrongPaymentStatus) {
+			code = http.StatusUnprocessableEntity
+		}
+
+		http.Error(w, err.Error(), code)
+		return
+	}
+}
+
+func (h *LibrePaymentHandler) CancelPayment(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "payment_id")
+
+	err := h.p.Cancel(id)
 	if err != nil {
 		code := http.StatusInternalServerError
 		if errors.Is(err, ErrPaymentNotFound) {

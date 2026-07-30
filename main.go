@@ -331,7 +331,7 @@ func librePaymentRoutes(mux *chi.Mux, librePaymentHandler *librepayment.LibrePay
 	mux.Get("/libre/payment/{payment_id}", librePaymentHandler.GetPaymentStatus)
 	mux.Post("/libre/payment/{payment_id}/confirm", librePaymentHandler.ConfirmPayment)
 	mux.Post("/libre/payment/{payment_id}/reject", librePaymentHandler.RejectPayment)
-
+	mux.Post("/libre/payment/{payment_id}/cancel", librePaymentHandler.CancelPayment)
 	mux.Post("/libre/payment/{payment_id}/status/canceled", librePaymentHandler.MakeHandlerForForceSetStatus(librepayment.StatusCanceled))
 	mux.Post("/libre/payment/{payment_id}/status/authorizing", librePaymentHandler.MakeHandlerForForceSetStatus(librepayment.StatusAuthorized))
 	mux.Post("/libre/payment/{payment_id}/status/rejected", librePaymentHandler.MakeHandlerForForceSetStatus(librepayment.StatusRejected))
